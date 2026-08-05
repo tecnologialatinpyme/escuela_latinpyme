@@ -1,0 +1,795 @@
+{% extends "base.html" %}
+
+{% block title %}Conversaciones — Escuela LatinPyme{% endblock %}
+
+{% block header_title %}Conversaciones WhatsApp{% endblock %}
+
+{% block header_badges %}
+<span id="webhook-badge" class="bg-emerald-50 text-emerald-700 text-xs px-3 py-1 rounded-full font-semibold border border-emerald-100 flex items-center gap-1.5">
+    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+    Webhook Activo
+</span>
+{% endblock %}
+
+{# ── Sobreescribir el padding del <main> para ocupar altura completa ── #}
+{% block extra_head %}
+<style>
+    /* Quitar el padding del main para que el chat ocupe toda la altura */
+    main.chat-full { padding: 0 !important; overflow: hidden !important; }
+
+    /* ── Chat Layout ── */
+    .chat-container { display: flex; height: 100%; background: #f0f2f5; }
+
+    /* Panel izquierdo — Lista de chats */
+    .chat-sidebar {
+        width: 360px;
+        min-width: 300px;
+        background: #fff;
+        border-right: 1px solid #e5e7eb;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .chat-sidebar-header {
+        padding: 12px 16px;
+        background: #f0f2f5;
+        border-bottom: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .chat-search-wrap {
+        padding: 8px 12px;
+        background: #fff;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .chat-search-input {
+        width: 100%;
+        background: #f0f2f5;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 13px;
+        color: #374151;
+        outline: none;
+        font-family: 'Outfit', sans-serif;
+    }
+    .chat-search-input::placeholder { color: #9ca3af; }
+
+    /* Lista scrollable */
+    .chat-list { flex: 1; overflow-y: auto; }
+    .chat-list::-webkit-scrollbar { width: 4px; }
+    .chat-list::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+
+    /* Item de chat */
+    .chat-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        cursor: pointer;
+        border-bottom: 1px solid #f8fafc;
+        transition: background 0.15s;
+        position: relative;
+    }
+    .chat-item:hover { background: #f8fafc; }
+    .chat-item.active { background: #ede9fe; border-left: 3px solid #6366f1; }
+    .chat-avatar {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
+        color: #fff;
+        font-weight: 700;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .chat-item-info { flex: 1; min-width: 0; }
+    .chat-item-name { font-weight: 600; font-size: 13.5px; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-item-preview { font-size: 11.5px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .chat-item-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+    .chat-item-ts { font-size: 10.5px; color: #94a3b8; }
+    .chat-unread-badge {
+        background: #6366f1;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        border-radius: 50%;
+        width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Panel derecho — Ventana de mensajes */
+    .chat-window {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        background: #e5ddd5;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cg fill='%23b5b5b5' fill-opacity='0.07'%3E%3Cpath d='M0 0h30v30H0zM30 30h30v30H30z'/%3E%3C/g%3E%3C/svg%3E");
+    }
+    .chat-window-header {
+        background: #f0f2f5;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 10px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+    }
+    .chat-window-name { font-weight: 700; font-size: 14px; color: #1e293b; }
+    .chat-window-status { font-size: 11px; color: #6b7280; }
+
+    /* Área de mensajes */
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: #c4cdd8; border-radius: 4px; }
+
+    .msg-bubble {
+        max-width: 65%;
+        padding: 8px 12px 20px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        line-height: 1.5;
+        position: relative;
+        word-break: break-word;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .msg-in {
+        background: #fff;
+        color: #1e293b;
+        align-self: flex-start;
+        border-top-left-radius: 0;
+    }
+    .msg-out {
+        background: #dcf8c6;
+        color: #1e293b;
+        align-self: flex-end;
+        border-top-right-radius: 0;
+    }
+    .msg-ts {
+        position: absolute;
+        bottom: 4px;
+        right: 10px;
+        font-size: 10px;
+        color: #8d9dad;
+        white-space: nowrap;
+    }
+    .msg-out .msg-ts { color: #6aaa56; }
+
+    /* Checks de lectura */
+    .msg-ticks { margin-left: 2px; color: #6aaa56; font-size: 10px; }
+
+    /* Área de entrada */
+    .chat-input-area {
+        background: #f0f2f5;
+        border-top: 1px solid #e5e7eb;
+        padding: 10px 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+    }
+    .chat-input-box {
+        flex: 1;
+        background: #fff;
+        border: none;
+        border-radius: 24px;
+        padding: 10px 18px;
+        font-size: 13.5px;
+        color: #1e293b;
+        outline: none;
+        font-family: 'Outfit', sans-serif;
+        resize: none;
+        max-height: 120px;
+        overflow-y: auto;
+    }
+    .chat-input-box::placeholder { color: #9ca3af; }
+    .chat-send-btn {
+        width: 42px; height: 42px;
+        border-radius: 50%;
+        background: #6366f1;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+        transition: background 0.2s, transform 0.1s;
+    }
+    .chat-send-btn:hover { background: #4f46e5; transform: scale(1.05); }
+    .chat-send-btn:active { transform: scale(0.96); }
+
+    /* Estado vacío */
+    .chat-empty {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        color: #9ca3af;
+        background: #e5ddd5;
+    }
+    .chat-empty-icon { font-size: 64px; opacity: 0.3; color: #6366f1; }
+
+    /* Date separator */
+    .date-sep {
+        text-align: center;
+        font-size: 11px;
+        color: #6b7280;
+        background: rgba(255,255,255,0.6);
+        border-radius: 20px;
+        padding: 2px 12px;
+        align-self: center;
+        margin: 8px 0;
+        backdrop-filter: blur(4px);
+    }
+
+    /* Botón eliminar chat en hover */
+    .chat-item .btn-delete-chat {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: #94a3b8;
+        cursor: pointer;
+        font-size: 12px;
+        transition: background 0.15s, color 0.15s;
+        flex-shrink: 0;
+    }
+    .chat-item:hover .btn-delete-chat {
+        display: flex;
+    }
+    .chat-item .btn-delete-chat:hover {
+        background: #fee2e2;
+        color: #ef4444;
+    }
+
+    /* Modal confirmación eliminación */
+    .delete-confirm-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.45);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .delete-confirm-box {
+        background: #fff;
+        border-radius: 16px;
+        padding: 28px 28px 22px;
+        width: 340px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        font-family: 'Outfit', sans-serif;
+        animation: fadeUp 0.2s ease;
+    }
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Notificación toast */
+    #toast-container {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .toast {
+        background: #1e293b;
+        color: #fff;
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-size: 12.5px;
+        font-family: 'Outfit', sans-serif;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{# ── La clave: sobreescribir el overflow del main en el DOM ── #}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const mainEl = document.querySelector('main');
+        if (mainEl) {
+            mainEl.style.padding = '0';
+            mainEl.style.overflow = 'hidden';
+        }
+    });
+</script>
+
+<div class="chat-container">
+
+    {# ── PANEL IZQUIERDO — Lista de Chats ── #}
+    <aside class="chat-sidebar">
+        <div class="chat-sidebar-header">
+            <div class="flex items-center gap-2">
+                <i class="fa-brands fa-whatsapp text-emerald-500 text-xl"></i>
+                <span class="font-bold text-slate-800 text-sm">Bandeja de Entrada</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="showWebhookInfo()" title="Info Webhook" class="text-slate-400 hover:text-brand-500 transition text-sm px-2 py-1 rounded-lg hover:bg-slate-100">
+                    <i class="fa-solid fa-circle-info"></i>
+                </button>
+                <span id="total-chats-badge" class="bg-indigo-50 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full border border-indigo-100">0</span>
+            </div>
+        </div>
+
+        <div class="chat-search-wrap">
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="chat-search" class="chat-search-input pl-8" placeholder="Buscar o empezar un chat...">
+            </div>
+        </div>
+
+        <div class="chat-list" id="chat-list">
+            {# Poblado dinámicamente por JS #}
+            <div class="flex items-center justify-center h-32 text-slate-400 text-xs">
+                <i class="fa-solid fa-spinner animate-spin mr-2"></i> Cargando chats...
+            </div>
+        </div>
+    </aside>
+
+    {# ── PANEL DERECHO — Ventana de Chat ── #}
+    <div class="chat-window" id="chat-window">
+        {# Estado vacío inicial #}
+        <div class="chat-empty" id="chat-empty-state">
+            <div class="chat-empty-icon"><i class="fa-brands fa-whatsapp"></i></div>
+            <p class="text-base font-semibold text-slate-500">WhatsApp Web — Escuela LatinPyme</p>
+            <p class="text-xs text-slate-400 max-w-xs text-center">Selecciona una conversación del panel izquierdo para comenzar a chatear con tus prospectos en tiempo real.</p>
+            <div class="mt-4 bg-white/60 rounded-xl px-5 py-3 text-xs text-slate-500 flex items-center gap-2 backdrop-blur-sm border border-white/80">
+                <i class="fa-solid fa-lock text-slate-400"></i>
+                Los mensajes están cifrados de extremo a extremo
+            </div>
+        </div>
+
+        {# Ventana de chat activo (oculta hasta seleccionar un chat) #}
+        <div id="chat-active-window" class="hidden flex-col h-full w-full">
+            <div class="chat-window-header">
+                <div class="chat-avatar" id="active-avatar" style="width:38px;height:38px;font-size:12px;">??</div>
+                <div>
+                    <div class="chat-window-name" id="active-name">—</div>
+                    <div class="chat-window-status" id="active-phone">—</div>
+                </div>
+                <div class="ml-auto flex items-center gap-3">
+                    <button id="btn-link-phone" onclick="showLinkPhoneModal()" class="text-slate-400 hover:text-indigo-500 transition text-sm flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-indigo-50" title="Vincular número real" style="display:none">
+                        <i class="fa-solid fa-link"></i>
+                        <span class="text-xs font-medium hidden sm:inline">Vincular número</span>
+                    </button>
+                    <button onclick="deleteActiveConversation()" class="text-slate-400 hover:text-rose-500 transition text-sm flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-rose-50" title="Eliminar conversación">
+                        <i class="fa-solid fa-trash-can"></i>
+                        <span class="text-xs font-medium hidden sm:inline">Eliminar</span>
+                    </button>
+                    <button class="text-slate-400 hover:text-brand-500 transition text-sm" title="Más opciones">
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+                </div>
+
+                <!-- Modal Vincular Número -->
+                <div id="link-phone-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;align-items:center;justify-content:center">
+                  <div style="background:#fff;border-radius:16px;padding:24px;width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+                    <h3 style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b">📞 Vincular número real</h3>
+                    <p style="margin:0 0 16px;font-size:13px;color:#64748b">Este contacto tiene el número oculto por privacidad. Ingresa su número real para poder responderle.</p>
+                    <input id="link-phone-input" type="tel" placeholder="+573002711932" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:16px;outline:none">
+                    <div style="display:flex;gap:10px">
+                      <button onclick="closeLinkPhoneModal()" style="flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#64748b;font-size:13px;cursor:pointer">Cancelar</button>
+                      <button onclick="doLinkPhone()" style="flex:1;padding:10px;border:none;border-radius:10px;background:#6366f1;color:#fff;font-size:13px;font-weight:600;cursor:pointer">Vincular</button>
+                    </div>
+                  </div>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+                {# Poblado dinámicamente #}
+            </div>
+
+            <div class="chat-input-area">
+                <button class="text-slate-400 hover:text-brand-500 transition text-lg" title="Adjuntar archivo">
+                    <i class="fa-solid fa-paperclip"></i>
+                </button>
+                <textarea id="chat-input" class="chat-input-box" rows="1" placeholder="Escribe un mensaje..."></textarea>
+                <button id="chat-send-btn" class="chat-send-btn" onclick="sendMessage()">
+                    <i class="fa-solid fa-paper-plane" style="margin-left:2px;"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Toast container #}
+<div id="toast-container"></div>
+
+{# Modal — Info Webhook #}
+<div id="webhook-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4">
+        <div class="flex items-center gap-3 mb-4">
+            <div class="bg-emerald-50 text-emerald-600 w-10 h-10 rounded-xl flex items-center justify-center">
+                <i class="fa-brands fa-whatsapp text-lg"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-slate-800 text-sm">Configuración del Webhook Meta</h3>
+                <p class="text-xs text-slate-400">WhatsApp Cloud API — Conexión oficial</p>
+            </div>
+            <button onclick="document.getElementById('webhook-modal').classList.replace('flex','hidden')" class="ml-auto text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+        <div class="space-y-3 text-xs text-slate-600">
+            <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                <p class="font-bold text-slate-700 mb-1"><i class="fa-solid fa-link text-brand-500 mr-1"></i> URL del Webhook</p>
+                <code class="text-[11px] text-indigo-600 break-all">https://tu-dominio.com/conversations/webhook</code>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                <p class="font-bold text-slate-700 mb-1"><i class="fa-solid fa-key text-amber-500 mr-1"></i> Token de Verificación</p>
+                <code class="text-[11px] text-emerald-600">latinpyme_secret_token</code>
+                <p class="text-[10px] text-slate-400 mt-1">Configurable en <code>config/config.json → META_WA_WEBHOOK_VERIFY_TOKEN</code></p>
+            </div>
+            <div class="bg-emerald-50 rounded-xl p-3 border border-emerald-200">
+                <p class="font-bold text-emerald-700 mb-1"><i class="fa-solid fa-circle-check mr-1"></i> Campos suscritos</p>
+                <p class="text-emerald-600">messages, message_status</p>
+            </div>
+            <div class="bg-amber-50 rounded-xl p-3 border border-amber-200">
+                <p class="font-bold text-amber-700 mb-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Nota de despliegue</p>
+                <p class="text-amber-600">Para conectar con Meta en producción, el servidor debe ser público (ngrok o dominio propio con HTTPS).</p>
+            </div>
+        </div>
+        <button onclick="document.getElementById('webhook-modal').classList.replace('flex','hidden')" class="mt-4 w-full bg-brand-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-brand-700 transition">Cerrar</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ════════════════════════════════════════════════
+// ESTADO GLOBAL
+// ════════════════════════════════════════════════
+let activePhone = null;
+let allChats = [];
+let lastMessageCount = 0;
+
+// ════════════════════════════════════════════════
+// POLLING — Actualizar chats cada 3 segundos
+// ════════════════════════════════════════════════
+async function pollMessages() {
+    try {
+        const url = activePhone
+            ? `/conversations/api/messages?phone=${encodeURIComponent(activePhone)}`
+            : '/conversations/api/messages';
+
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        allChats = data.chats;
+        renderChatList(allChats);
+
+        if (activePhone && data.active_messages) {
+            const newCount = data.active_messages.length;
+            if (newCount !== lastMessageCount) {
+                lastMessageCount = newCount;
+                renderMessages(data.active_messages);
+            }
+        }
+
+        // Detectar mensajes entrantes nuevos y mostrar notificación
+        const totalUnread = allChats.reduce((sum, c) => sum + (c.unread || 0), 0);
+        if (totalUnread > 0) {
+            const badge = document.getElementById('total-chats-badge');
+            badge.textContent = totalUnread;
+            badge.classList.replace('bg-indigo-50', 'bg-rose-100');
+            badge.classList.replace('text-indigo-700', 'text-rose-700');
+            badge.classList.replace('border-indigo-100', 'border-rose-200');
+        }
+
+    } catch (e) {
+        console.warn('Poll error:', e);
+    }
+}
+
+// ════════════════════════════════════════════════
+// RENDER — Lista de chats
+// ════════════════════════════════════════════════
+function renderChatList(chats) {
+    const query = document.getElementById('chat-search').value.toLowerCase();
+    const filtered = chats.filter(c =>
+        c.name.toLowerCase().includes(query) ||
+        c.phone.includes(query)
+    );
+
+    const container = document.getElementById('chat-list');
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-32 text-slate-400 text-xs gap-2">
+                <i class="fa-solid fa-comment-slash text-xl opacity-40"></i>
+                <span>Sin conversaciones</span>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = filtered.map(chat => `
+        <div class="chat-item ${chat.phone === activePhone ? 'active' : ''}"
+             onclick="openChat('${chat.phone}', '${escapeHtml(chat.name)}', '${escapeHtml(chat.avatar)}')"
+             id="chat-item-${chat.phone.replace(/\+/g,'').replace(/ /g,'')}">
+            <div class="chat-avatar" style="background: ${avatarColor(chat.name)}">${escapeHtml(chat.avatar)}</div>
+            <div class="chat-item-info">
+                <div class="chat-item-name">${escapeHtml(chat.name)}</div>
+                <div class="chat-item-preview">${escapeHtml(chat.last_message || '—')}</div>
+            </div>
+            <div class="chat-item-meta">
+                <div class="flex items-center gap-1">
+                    <span class="chat-item-ts">${chat.last_ts || ''}</span>
+                    <button class="btn-delete-chat" onclick="event.stopPropagation(); confirmDelete('${chat.phone}', '${escapeHtml(chat.name)}')" title="Eliminar conversación">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+                ${chat.unread > 0 ? `<span class="chat-unread-badge">${chat.unread}</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+
+    document.getElementById('total-chats-badge').textContent = filtered.length;
+}
+
+// ════════════════════════════════════════════════
+// ABRIR CHAT
+// ════════════════════════════════════════════════
+async function openChat(phone, name, avatar) {
+    activePhone = phone;
+    lastMessageCount = 0;
+
+    // Actualizar UI del header del chat
+    document.getElementById('active-name').textContent = name;
+    document.getElementById('active-phone').textContent = phone;
+    document.getElementById('active-avatar').textContent = avatar;
+    document.getElementById('active-avatar').style.background = avatarColor(name);
+
+    // Mostrar ventana activa
+    document.getElementById('chat-empty-state').classList.add('hidden');
+    const activeWin = document.getElementById('chat-active-window');
+    activeWin.classList.remove('hidden');
+    activeWin.classList.add('flex');
+
+    // Hacer fetch inmediato con el phone
+    await pollMessages();
+
+    // Foco en el input
+    document.getElementById('chat-input').focus();
+}
+
+// ════════════════════════════════════════════════
+// RENDER — Mensajes del chat activo
+// ════════════════════════════════════════════════
+function renderMessages(messages) {
+    const container = document.getElementById('chat-messages');
+    const wasAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 60;
+
+    container.innerHTML = `
+        <div class="date-sep">Hoy</div>
+        ${messages.map(m => `
+            <div class="msg-bubble ${m.direction === 'in' ? 'msg-in' : 'msg-out'}">
+                ${escapeHtml(m.body)}
+                <span class="msg-ts">
+                    ${m.ts}
+                    ${m.direction === 'out' ? '<span class="msg-ticks">✓✓</span>' : ''}
+                </span>
+            </div>
+        `).join('')}
+    `;
+
+    // Auto-scroll al fondo si ya estaba ahí
+    if (wasAtBottom) {
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+// ════════════════════════════════════════════════
+// ENVIAR MENSAJE
+// ════════════════════════════════════════════════
+async function sendMessage() {
+    if (!activePhone) return;
+    const input = document.getElementById('chat-input');
+    const body = input.value.trim();
+    if (!body) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+
+    try {
+        const res = await fetch('/conversations/api/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: activePhone, body })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            await pollMessages(); // Actualizar inmediatamente
+
+            // Feedback según si llegó realmente a WhatsApp
+            if (data.whatsapp && data.whatsapp.exito) {
+                showToast('✅ Mensaje enviado por WhatsApp', 'success');
+            } else if (data.whatsapp && !data.whatsapp.simulado) {
+                const errMsg = data.whatsapp.error || 'No se pudo enviar por WhatsApp';
+                showToast('⚠️ ' + errMsg, 'warning');
+            }
+        } else {
+            showToast('❌ ' + (data.error || 'Error al enviar el mensaje'), 'error');
+        }
+    } catch (e) {
+        showToast('❌ Error de conexión', 'error');
+    }
+}
+
+
+// Enviar con Enter (Shift+Enter = nueva línea)
+document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('chat-input');
+    if (input) {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        // Auto-resize textarea
+        input.addEventListener('input', () => {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+        });
+    }
+
+    // Buscador en tiempo real
+    const searchInput = document.getElementById('chat-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => renderChatList(allChats));
+    }
+
+    // Iniciar polling
+    pollMessages();
+    setInterval(pollMessages, 3000);
+});
+
+// ════════════════════════════════════════════════
+// UTILIDADES
+// ════════════════════════════════════════════════
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function avatarColor(name) {
+    const colors = [
+        'linear-gradient(135deg,#6366f1,#4f46e5)',
+        'linear-gradient(135deg,#10b981,#059669)',
+        'linear-gradient(135deg,#f59e0b,#d97706)',
+        'linear-gradient(135deg,#ef4444,#dc2626)',
+        'linear-gradient(135deg,#8b5cf6,#7c3aed)',
+        'linear-gradient(135deg,#0ea5e9,#0284c7)',
+    ];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    return colors[Math.abs(hash) % colors.length];
+}
+
+function showToast(msg, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    const icon = type === 'error' ? '🔴' : '✅';
+    toast.innerHTML = `${icon} ${msg}`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3500);
+}
+
+function showWebhookInfo() {
+    document.getElementById('webhook-modal').classList.replace('hidden', 'flex');
+}
+
+// ════════════════════════════════════════════════
+// CONFIRMAR Y ELIMINAR conversación (desde la lista)
+// ════════════════════════════════════════════════
+function confirmDelete(phone, name) {
+    const overlay = document.createElement('div');
+    overlay.className = 'delete-confirm-overlay';
+    overlay.innerHTML = `
+        <div class="delete-confirm-box">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500">
+                    <i class="fa-solid fa-trash-can text-lg"></i>
+                </div>
+                <div>
+                    <p class="font-bold text-slate-800 text-sm">¿Eliminar conversación?</p>
+                    <p class="text-xs text-slate-400">Esta acción no se puede deshacer.</p>
+                </div>
+            </div>
+            <div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-5">
+                <p class="text-xs text-slate-500 font-medium">${escapeHtml(name)}</p>
+                <p class="text-[11px] text-slate-400">${phone}</p>
+            </div>
+            <div class="flex gap-2">
+                <button id="del-cancel" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-500 text-sm font-semibold hover:bg-slate-50 transition">Cancelar</button>
+                <button id="del-confirm" class="flex-1 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-semibold hover:bg-rose-600 transition">Eliminar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#del-cancel').onclick = () => overlay.remove();
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    overlay.querySelector('#del-confirm').onclick = async () => {
+        overlay.remove();
+        await doDelete(phone);
+    };
+}
+
+async function doDelete(phone) {
+    try {
+        const res = await fetch('/conversations/api/delete', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone })
+        });
+        if (res.ok) {
+            showToast('🗑️ Conversación eliminada');
+            if (activePhone === phone) {
+                activePhone = null;
+                document.getElementById('chat-active-window').classList.add('hidden');
+                document.getElementById('chat-active-window').classList.remove('flex');
+                document.getElementById('chat-empty-state').classList.remove('hidden');
+            }
+            await pollMessages();
+        } else {
+            showToast('❌ Error al eliminar la conversación', 'error');
+        }
+    } catch (e) {
+        showToast('❌ Error de conexión', 'error');
+    }
+}
+
+// ════════════════════════════════════════════════
+// ELIMINAR conversación activa (desde el header)
+// ════════════════════════════════════════════════
+function deleteActiveConversation() {
+    if (!activePhone) return;
+    const name = document.getElementById('active-name').textContent;
+    confirmDelete(activePhone, name);
+}
+</script>
+{% endblock %}

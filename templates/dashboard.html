@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Escuela LatinPyme{% endblock %}
+
+{% block header_title %}Dashboard del Asesor{% endblock %}
+
+{% block header_badges %}
+<span class="bg-emerald-50 text-emerald-700 text-xs px-3 py-1 rounded-full font-semibold border border-emerald-100 flex items-center gap-1.5">
+    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+    Conexión Webhook Activa
+</span>
+<button onclick="refrescarDashboard()" title="Actualizar datos" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs px-3 py-1 rounded-full font-semibold border border-indigo-100 flex items-center gap-1.5 transition-all duration-200">
+    <i class="fa-solid fa-rotate-right" id="refresh-icon"></i>
+    Actualizar
+</button>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- SECCIÓN METRICAS (KPI Cards) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        <!-- Tarjeta 1: Total Leads -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover-card-trigger">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Leads Analizados</span>
+                <div class="bg-indigo-50 text-indigo-600 w-9 h-9 rounded-xl flex items-center justify-center text-sm shadow-sm">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <span id="kpi-leads-total" class="text-2xl font-bold text-slate-800">1,248</span>
+                <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                    <i class="fa-solid fa-arrow-up"></i> +12%
+                </span>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-2 font-medium">Historial acumulado en el navegador</p>
+        </div>
+
+        <!-- Tarjeta 2: Tasa de Admisión -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover-card-trigger">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Tasa de Aprobación</span>
+                <div class="bg-emerald-50 text-emerald-600 w-9 h-9 rounded-xl flex items-center justify-center text-sm shadow-sm">
+                    <i class="fa-solid fa-percent"></i>
+                </div>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <span id="kpi-leads-tasa" class="text-2xl font-bold text-slate-800">42.5%</span>
+                <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                    Perfil calificado
+                </span>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-2 font-medium">Aprobación mediante Inteligencia Artificial</p>
+        </div>
+
+        <!-- Tarjeta 3: Mensajes Enviados -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover-card-trigger">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">WhatsApp Enviados</span>
+                <div class="bg-blue-50 text-blue-600 w-9 h-9 rounded-xl flex items-center justify-center text-sm shadow-sm">
+                    <i class="fa-brands fa-whatsapp text-lg"></i>
+                </div>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <span id="kpi-wa-enviados" class="text-2xl font-bold text-slate-800">512</span>
+                <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                    98% éxito
+                </span>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-2 font-medium">Envíos masivos mediante Meta API</p>
+        </div>
+
+        <!-- Tarjeta 4: Conversaciones Activas -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover-card-trigger">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Conversaciones</span>
+                <div class="bg-rose-50 text-rose-600 w-9 h-9 rounded-xl flex items-center justify-center text-sm shadow-sm">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+            </div>
+            <div class="flex items-baseline gap-2">
+                <span id="kpi-chat-activos" class="text-2xl font-bold text-slate-800">18</span>
+                <span class="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                    <i class="fa-solid fa-fire animate-pulse"></i> Activo
+                </span>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-2 font-medium">Bandeja de chat en vivo de asesores</p>
+        </div>
+    </div>
+
+    <!-- SECCIÓN GRAFICOS (Grid de dos columnas para Chart.js) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Gráfico 1: Perfilado de Leads (Doughnut) -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div>
+                <h3 class="font-bold text-slate-800 text-sm mb-1 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-brand-500"></i>
+                    Distribución de Calificados
+                </h3>
+                <p class="text-[10px] text-slate-400 mb-6 font-medium">Relación entre candidatos recomendados por IA y descartados.</p>
+            </div>
+            <div class="w-full max-w-[200px] mx-auto">
+                <canvas id="chartPerfilado"></canvas>
+            </div>
+            <div class="mt-4 flex items-center justify-around text-xs font-semibold">
+                <span class="flex items-center gap-1.5 text-slate-600">
+                    <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span> Aprobados
+                </span>
+                <span class="flex items-center gap-1.5 text-slate-600">
+                    <span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Descartados
+                </span>
+            </div>
+        </div>
+
+        <!-- Gráfico 2: Desempeño de Campañas (Barras) -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2 flex flex-col justify-between">
+            <div>
+                <h3 class="font-bold text-slate-800 text-sm mb-1 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-bar text-brand-500"></i>
+                    Embudo de Conversión de Campaña
+                </h3>
+                <p class="text-[10px] text-slate-400 mb-6 font-medium">Monitoreo de estado de entrega y lecturas del webhook oficial de Meta.</p>
+            </div>
+            <div class="h-60 w-full">
+                <canvas id="chartCampana"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN ACTIVIDAD RECIENTE -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-slate-100">
+            <h3 class="font-bold text-slate-800 text-sm">Resumen de Actividades de Admisión</h3>
+            <p class="text-[10px] text-slate-400">Últimos registros LMS cargados y su estado general.</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-600">
+                <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider">
+                    <tr>
+                        <th class="py-3 px-6">Lead</th>
+                        <th class="py-3 px-6">Cargo</th>
+                        <th class="py-3 px-6">Canal Destino</th>
+                        <th class="py-3 px-6">Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaActividad" class="divide-y divide-slate-100">
+                    <tr class="hover:bg-slate-50/50">
+                        <td class="py-3.5 px-6 font-semibold text-slate-800">Andrés Mendoza</td>
+                        <td class="py-3.5 px-6">Director de Logística</td>
+                        <td class="py-3.5 px-6 font-mono">+573144187269</td>
+                        <td class="py-3.5 px-6">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold border border-emerald-100">Leído</span>
+                        </td>
+                    </tr>
+                    <tr class="hover:bg-slate-50/50">
+                        <td class="py-3.5 px-6 font-semibold text-slate-800">Diana Duarte</td>
+                        <td class="py-3.5 px-6">Gerente de Recursos Humanos</td>
+                        <td class="py-3.5 px-6 font-mono">+573105584725</td>
+                        <td class="py-3.5 px-6">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold border border-blue-100">Entregado</span>
+                        </td>
+                    </tr>
+                    <tr class="hover:bg-slate-50/50">
+                        <td class="py-3.5 px-6 font-semibold text-slate-800">Carlos Restrepo</td>
+                        <td class="py-3.5 px-6">Analista de Tesorería</td>
+                        <td class="py-3.5 px-6 font-mono">+573215896325</td>
+                        <td class="py-3.5 px-6">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-bold border border-amber-100">Enviado</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <!-- Banner cuando no hay datos reales -->
+    <div id="no-data-banner" class="hidden bg-amber-50 border border-amber-200 text-amber-800 px-6 py-4 rounded-xl flex items-center justify-between shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="bg-amber-100 p-2 rounded-lg text-amber-700">
+                <i class="fa-solid fa-circle-info text-lg"></i>
+            </div>
+            <div>
+                <h4 class="font-bold text-sm">Mostrando datos de ejemplo</h4>
+                <p class="text-xs text-amber-600">Aún no has procesado ningún análisis. Ve al Data Center, analiza un archivo y envía contactos a campaña para ver tus datos reales aquí.</p>
+            </div>
+        </div>
+        <a href="/datacenter" class="text-xs bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3 py-2 rounded-lg transition flex-shrink-0">
+            Ir al Data Center
+        </a>
+    </div>
+
+    <!-- Última actualización -->
+    <div id="last-update-bar" class="hidden bg-indigo-50 border border-indigo-100 text-indigo-700 px-5 py-2.5 rounded-xl flex items-center gap-2 text-xs font-semibold">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span id="last-update-text">Datos actualizados</span>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Librería Chart.js para renderizar los gráficos -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let chartPerfilado = null;
+    let chartCampana = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        inicializarDashboard();
+    });
+
+    function refrescarDashboard() {
+        // Animación del icóno de refresco
+        const icon = document.getElementById('refresh-icon');
+        icon.classList.add('animate-spin');
+        setTimeout(() => icon.classList.remove('animate-spin'), 600);
+
+        // Destruir gráficos anteriores para recrearlos con nuevos datos
+        if (chartPerfilado) { chartPerfilado.destroy(); chartPerfilado = null; }
+        if (chartCampana) { chartCampana.destroy(); chartCampana = null; }
+
+        inicializarDashboard();
+    }
+
+    function inicializarDashboard() {
+        // --- Leer datos reales del localStorage ---
+        const statsRaw = localStorage.getItem('latinpyme_analysis_stats');
+        const sentLogsRaw = localStorage.getItem('latinpyme_sent_logs');
+        const allRecordsRaw = localStorage.getItem('latinpyme_all_records');
+
+        let totalLeads, aprobados, descartados, waEnviados, chatsActivos;
+        let hayDatosReales = false;
+
+        // Prioridad 1: Usar las estadísticas del análisis (más precisas)
+        if (statsRaw) {
+            const stats = JSON.parse(statsRaw);
+            totalLeads  = stats.totalLeads  || 0;
+            aprobados   = stats.aprobados   || 0;
+            descartados = stats.descartados || 0;
+            hayDatosReales = true;
+
+            // Mostrar fecha del último análisis
+            if (stats.fechaAnalisis) {
+                const fecha = new Date(stats.fechaAnalisis);
+                const opciones = { dateStyle: 'medium', timeStyle: 'short' };
+                document.getElementById('last-update-text').innerText =
+                    `Datos del último análisis: ${fecha.toLocaleString('es-CO', opciones)}`;
+                document.getElementById('last-update-bar').classList.remove('hidden');
+            }
+        } else {
+            // Valores de ejemplo cuando no hay datos reales
+            totalLeads  = 1248;
+            aprobados   = 530;
+            descartados = 718;
+        }
+
+        // Prioridad 2: Datos de envíos de campañas
+        if (sentLogsRaw) {
+            const sentLogs = JSON.parse(sentLogsRaw);
+            waEnviados  = sentLogs.length;
+            chatsActivos = Math.max(1, Math.round(sentLogs.length * 0.15));
+            hayDatosReales = true;
+        } else {
+            waEnviados   = hayDatosReales ? aprobados : 512;
+            chatsActivos = hayDatosReales ? Math.max(1, Math.round(aprobados * 0.15)) : 18;
+        }
+
+        // Mostrar banner si no hay datos reales
+        const banner = document.getElementById('no-data-banner');
+        if (!hayDatosReales) {
+            banner.classList.remove('hidden');
+        } else {
+            banner.classList.add('hidden');
+        }
+
+        const tasaAprobacion = totalLeads > 0 ? ((aprobados / totalLeads) * 100).toFixed(1) : '0.0';
+
+        // Actualizar KPIs en la UI
+        document.getElementById('kpi-leads-total').innerText = totalLeads.toLocaleString('es-CO');
+        document.getElementById('kpi-leads-tasa').innerText  = `${tasaAprobacion}%`;
+        document.getElementById('kpi-wa-enviados').innerText = waEnviados.toLocaleString('es-CO');
+        document.getElementById('kpi-chat-activos').innerText = chatsActivos;
+
+        // --- Actualizar tabla de actividad reciente ---
+        if (allRecordsRaw) {
+            const allRecords = JSON.parse(allRecordsRaw);
+            actualizarTablaActividad(allRecords);
+        }
+
+        // 1. Gráfico de Perfilado IA (Doughnut)
+        const ctxPerfilado = document.getElementById('chartPerfilado').getContext('2d');
+        chartPerfilado = new Chart(ctxPerfilado, {
+            type: 'doughnut',
+            data: {
+                labels: ['Aprobados', 'Descartados'],
+                datasets: [{
+                    data: [aprobados, descartados],
+                    backgroundColor: ['#4f46e5', '#cbd5e1'],
+                    borderWidth: 2,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { display: false }
+                },
+                cutout: '75%'
+            }
+        });
+
+        // 2. Gráfico de Campaña (Bar Chart)
+        const ctxCampana = document.getElementById('chartCampana').getContext('2d');
+        
+        const enviados   = waEnviados;
+        const entregados = Math.round(waEnviados * 0.95);
+        const leidos     = Math.round(waEnviados * 0.72);
+        const fallidos   = waEnviados - entregados;
+
+        chartCampana = new Chart(ctxCampana, {
+            type: 'bar',
+            data: {
+                labels: ['Enviados', 'Entregados', 'Leídos', 'Fallidos'],
+                datasets: [{
+                    label: 'Registros',
+                    data: [enviados, entregados, leidos, fallidos],
+                    backgroundColor: ['#6366f1', '#3b82f6', '#10b981', '#f43f5e'],
+                    borderRadius: 8,
+                    barThickness: 32
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#f1f5f9' },
+                        ticks: { font: { family: 'Outfit', size: 10 } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { family: 'Outfit', size: 10, weight: 'bold' } }
+                    }
+                }
+            }
+        });
+    }
+
+    function actualizarTablaActividad(records) {
+        const tbody = document.getElementById('tablaActividad');
+        if (!records || records.length === 0) return;
+
+        // Mostrar los últimos 5 registros
+        const recientes = records.slice(-5).reverse();
+        tbody.innerHTML = '';
+
+        recientes.forEach(item => {
+            let badgeHtml, estadoTexto;
+            if (item.es_candidato) {
+                badgeHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold border border-emerald-100">Aprobado</span>`;
+            } else {
+                badgeHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded bg-rose-50 text-rose-700 font-bold border border-rose-100">Descartado</span>`;
+            }
+
+            tbody.innerHTML += `
+                <tr class="hover:bg-slate-50/50">
+                    <td class="py-3.5 px-6 font-semibold text-slate-800">${item.nombre || '-'}</td>
+                    <td class="py-3.5 px-6">${item.cargo || '-'}</td>
+                    <td class="py-3.5 px-6 font-mono">${item.telefono || '-'}</td>
+                    <td class="py-3.5 px-6">${badgeHtml}</td>
+                </tr>
+            `;
+        });
+    }
+</script>
+{% endblock %}

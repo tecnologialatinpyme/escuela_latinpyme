@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: latinpyme-app
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers=1 --threads=4 --timeout=120
+    envVars:
+      - key: META_WA_TOKEN
+        sync: false
+      - key: META_WA_PHONE_NUMBER_ID
+        sync: false
+      - key: META_WA_BUSINESS_ACCOUNT_ID
+        sync: false
+      - key: META_WA_WEBHOOK_VERIFY_TOKEN
+        value: latinpyme_secret_token
+      - key: META_WA_TEMPLATE_NAME
+        value: plantilla_curso_latinpyme
+      - key: SECRET_KEY
+        generateValue: true

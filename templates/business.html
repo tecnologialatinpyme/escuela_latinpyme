@@ -1,0 +1,516 @@
+{% extends "base.html" %}
+
+{% block title %}Negocios CRM — Escuela LatinPyme{% endblock %}
+
+{% block header_title %}CRM & Negocios{% endblock %}
+
+{% block header_badges %}
+<span class="bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded-full font-semibold border border-blue-100 flex items-center gap-1.5">
+    <i class="fa-solid fa-briefcase text-xs"></i>
+    Pipeline Activo
+</span>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* ── Kanban Board ── */
+    .kanban-board {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        min-height: 420px;
+    }
+    @media (max-width: 1100px) {
+        .kanban-board { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .kanban-col {
+        border-radius: 16px;
+        padding: 14px;
+        min-height: 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        transition: background 0.2s;
+    }
+    .kanban-col.drag-over { outline: 2px dashed #E30613; outline-offset: -2px; background: #fff1f1 !important; }
+
+    .col-prospecto  { background: #f8fafc; border: 1px solid #e2e8f0; }
+    .col-calificado { background: #fffbeb; border: 1px solid #fde68a; }
+    .col-propuesta  { background: #eff6ff; border: 1px solid #bfdbfe; }
+    .col-cerrado    { background: #f0fdf4; border: 1px solid #bbf7d0; }
+
+    .kanban-col-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-bottom: 10px;
+        border-bottom: 2px solid transparent;
+        margin-bottom: 4px;
+    }
+    .col-prospecto  .kanban-col-header { border-color: #94a3b8; }
+    .col-calificado .kanban-col-header { border-color: #f59e0b; }
+    .col-propuesta  .kanban-col-header { border-color: #3b82f6; }
+    .col-cerrado    .kanban-col-header { border-color: #22c55e; }
+
+    .kanban-col-title { font-weight: 700; font-size: 12px; color: #1e293b; display: flex; align-items: center; gap: 6px; }
+    .col-count { font-size: 10px; font-weight: 700; background: rgba(0,0,0,0.06); border-radius: 20px; padding: 1px 7px; }
+
+    /* ── Deal Card ── */
+    .deal-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 12px 14px;
+        border: 1px solid #e2e8f0;
+        cursor: grab;
+        transition: box-shadow 0.2s, transform 0.15s;
+        position: relative;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .deal-card:hover { box-shadow: 0 6px 24px rgba(99,102,241,0.12); transform: translateY(-1px); }
+    .deal-card:active { cursor: grabbing; }
+    .deal-card.dragging { opacity: 0.4; transform: scale(0.97); }
+
+    .deal-company { font-weight: 700; font-size: 12.5px; color: #1e293b; margin-bottom: 3px; }
+    .deal-contact { font-size: 11px; color: #64748b; display: flex; align-items: center; gap: 4px; }
+    .deal-program { font-size: 10.5px; color: #8b5cf6; background: #ede9fe; border-radius: 6px; padding: 1px 6px; display: inline-block; margin-top: 6px; font-weight: 600; }
+    .deal-value   { font-size: 13px; font-weight: 700; color: #0f172a; margin-top: 8px; display: flex; align-items: center; justify-content: space-between; }
+    .deal-days    { font-size: 10px; color: #94a3b8; background: #f1f5f9; border-radius: 6px; padding: 1px 6px; }
+
+    .deal-del-btn {
+        position: absolute;
+        top: 8px; right: 8px;
+        color: #cbd5e1;
+        font-size: 11px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.15s, color 0.15s;
+        background: none;
+        border: none;
+        line-height: 1;
+        padding: 2px 4px;
+        border-radius: 4px;
+    }
+    .deal-card:hover .deal-del-btn { opacity: 1; }
+    .deal-del-btn:hover { color: #ef4444; background: #fee2e2; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(15,23,42,0.55);
+        backdrop-filter: blur(4px);
+        z-index: 50;
+        display: none;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-card {
+        background: #fff;
+        border-radius: 20px;
+        padding: 28px;
+        max-width: 500px;
+        width: 100%;
+        margin: 16px;
+        box-shadow: 0 25px 60px rgba(0,0,0,0.15);
+        animation: modalIn 0.25s ease;
+    }
+    @keyframes modalIn {
+        from { opacity:0; transform: scale(0.95) translateY(8px); }
+        to   { opacity:1; transform: scale(1) translateY(0); }
+    }
+    .form-label { display:block; font-size:11px; font-weight:700; color:#64748b; margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em; }
+    .form-input {
+        width:100%; border:1px solid #e2e8f0; border-radius:10px;
+        padding:9px 12px; font-size:13px; color:#1e293b; outline:none;
+        font-family:'Outfit',sans-serif; transition: border-color 0.2s;
+    }
+    .form-input:focus { border-color:#E30613; box-shadow:0 0 0 3px rgba(227,6,19,0.1); }
+
+    /* ── KPI Cards ── */
+    .kpi-crm { transition: transform 0.2s, box-shadow 0.2s; }
+    .kpi-crm:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(227,6,19,0.12); }
+
+    /* ── Drop zone vacío ── */
+    .drop-zone-empty {
+        border: 2px dashed #e2e8f0;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        font-size: 11px;
+        color: #cbd5e1;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 80px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    {# ── KPI CARDS CRM ── #}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div class="kpi-crm bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg flex-shrink-0">
+                <i class="fa-solid fa-handshake"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Oportunidades</p>
+                <p class="text-2xl font-bold text-slate-800" id="kpi-deals">0</p>
+            </div>
+        </div>
+        <div class="kpi-crm bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg flex-shrink-0">
+                <i class="fa-solid fa-coins"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Valor Pipeline</p>
+                <p class="text-xl font-bold text-slate-800" id="kpi-value">$0</p>
+            </div>
+        </div>
+        <div class="kpi-crm bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg flex-shrink-0">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tasa de Cierre</p>
+                <p class="text-2xl font-bold text-slate-800" id="kpi-rate">0%</p>
+            </div>
+        </div>
+        <div class="kpi-crm bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg flex-shrink-0">
+                <i class="fa-solid fa-clock"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Días Promedio</p>
+                <p class="text-2xl font-bold text-slate-800" id="kpi-days">0</p>
+            </div>
+        </div>
+    </div>
+
+    {# ── KANBAN PIPELINE ── #}
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div>
+                <h2 class="font-bold text-slate-800 text-sm">Pipeline de Oportunidades</h2>
+                <p class="text-[10px] text-slate-400 mt-0.5">Arrastra las tarjetas entre columnas para actualizar el estado de cada prospecto</p>
+            </div>
+            <button onclick="document.getElementById('modal-add-deal').classList.add('open')"
+                    class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition shadow-sm shadow-brand-500/20">
+                <i class="fa-solid fa-plus"></i> Nueva Oportunidad
+            </button>
+        </div>
+
+        <div class="p-5">
+            <div class="kanban-board" id="kanban-board">
+                {# Columnas renderizadas dinámicamente por JS #}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════
+   MODAL — Nueva Oportunidad
+══════════════════════════════════════ #}
+<div id="modal-add-deal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                <i class="fa-solid fa-briefcase text-base"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-slate-800 text-sm">Nueva Oportunidad</h3>
+                <p class="text-[10px] text-slate-400">Registre un prospecto o empresa en el pipeline</p>
+            </div>
+            <button onclick="document.getElementById('modal-add-deal').classList.remove('open')" class="ml-auto text-slate-400 hover:text-slate-600 text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form id="form-add-deal" class="space-y-4" onsubmit="submitDeal(event)">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                    <label class="form-label">Empresa *</label>
+                    <input id="d-company" class="form-input" type="text" placeholder="Ej: Grupo Empresarial Andino" required>
+                </div>
+                <div>
+                    <label class="form-label">Contacto Principal *</label>
+                    <input id="d-contact" class="form-input" type="text" placeholder="Nombre completo" required>
+                </div>
+                <div>
+                    <label class="form-label">Teléfono WhatsApp</label>
+                    <input id="d-phone" class="form-input" type="tel" placeholder="+57 300 000 0000">
+                </div>
+                <div>
+                    <label class="form-label">Programa de Interés *</label>
+                    <select id="d-program" class="form-input" required>
+                        <option value="">Seleccionar...</option>
+                        <option>Diplomado en Liderazgo</option>
+                        <option>Gestión del Talento</option>
+                        <option>Finanzas Corporativas</option>
+                        <option>Marketing Digital B2B</option>
+                        <option>Cumbre LatinPyme 2026</option>
+                        <option>Otro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Etapa Inicial *</label>
+                    <select id="d-stage" class="form-input" required>
+                        <option value="Prospecto">Prospecto</option>
+                        <option value="Calificado">Calificado</option>
+                        <option value="Propuesta">Propuesta</option>
+                        <option value="Cerrado">Cerrado</option>
+                    </select>
+                </div>
+                <div class="col-span-2">
+                    <label class="form-label">Valor Estimado (COP) *</label>
+                    <input id="d-value" class="form-input" type="number" min="0" step="100000" placeholder="5000000" required>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="document.getElementById('modal-add-deal').classList.remove('open')"
+                        class="flex-1 border border-slate-200 text-slate-600 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-50 transition">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="flex-1 bg-brand-600 hover:bg-brand-700 text-white py-2.5 rounded-xl text-sm font-bold transition shadow-sm shadow-brand-500/20">
+                    <i class="fa-solid fa-plus mr-1"></i> Agregar al Pipeline
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ════════════════════════════════════════════════
+// ESTADO
+// ════════════════════════════════════════════════
+let allDeals = [];
+let draggedId = null;
+
+const STAGES = [
+    { key: 'Prospecto',  label: 'Prospecto',  icon: 'fa-user-plus',     colClass: 'col-prospecto',  color: '#64748b' },
+    { key: 'Calificado', label: 'Calificado', icon: 'fa-star',           colClass: 'col-calificado', color: '#f59e0b' },
+    { key: 'Propuesta',  label: 'Propuesta',  icon: 'fa-file-contract',  colClass: 'col-propuesta',  color: '#3b82f6' },
+    { key: 'Cerrado',    label: 'Cerrado',    icon: 'fa-trophy',         colClass: 'col-cerrado',    color: '#22c55e' },
+];
+
+// ════════════════════════════════════════════════
+// CARGAR DEALS
+// ════════════════════════════════════════════════
+async function loadDeals() {
+    try {
+        const res = await fetch('/business/api/deals');
+        allDeals = await res.json();
+        updateKPIs();
+        renderKanban();
+    } catch(e) {
+        document.getElementById('kanban-board').innerHTML =
+            `<div class="col-span-4 py-10 text-center text-rose-500 text-xs"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Error cargando pipeline.</div>`;
+    }
+}
+
+// ════════════════════════════════════════════════
+// KPIs CRM
+// ════════════════════════════════════════════════
+function updateKPIs() {
+    const total = allDeals.length;
+    const pipelineValue = allDeals.filter(d => d.stage !== 'Cerrado').reduce((s,d) => s + d.value, 0);
+    const closed = allDeals.filter(d => d.stage === 'Cerrado').length;
+    const rate = total > 0 ? Math.round(closed / total * 100) : 0;
+    const avgDays = total > 0 ? Math.round(allDeals.reduce((s,d) => s + d.days, 0) / total) : 0;
+
+    document.getElementById('kpi-deals').textContent = total;
+    document.getElementById('kpi-value').textContent = '$' + pipelineValue.toLocaleString('es-CO');
+    document.getElementById('kpi-rate').textContent = rate + '%';
+    document.getElementById('kpi-days').textContent = avgDays;
+}
+
+// ════════════════════════════════════════════════
+// RENDER KANBAN
+// ════════════════════════════════════════════════
+function renderKanban() {
+    const board = document.getElementById('kanban-board');
+    board.innerHTML = STAGES.map(stage => {
+        const cards = allDeals.filter(d => d.stage === stage.key);
+        const stageValue = cards.reduce((s, d) => s + d.value, 0);
+
+        return `
+        <div class="kanban-col ${stage.colClass}" id="col-${stage.key}"
+             data-stage="${stage.key}"
+             ondragover="onDragOver(event)"
+             ondragleave="onDragLeave(event)"
+             ondrop="onDrop(event, '${stage.key}')">
+
+            <div class="kanban-col-header">
+                <span class="kanban-col-title">
+                    <i class="fa-solid ${stage.icon}" style="color:${stage.color};font-size:11px;"></i>
+                    ${stage.label}
+                    <span class="col-count">${cards.length}</span>
+                </span>
+                <span style="font-size:10px;font-weight:700;color:${stage.color};">$${stageValue.toLocaleString('es-CO')}</span>
+            </div>
+
+            ${cards.length === 0 ? `<div class="drop-zone-empty"><i class="fa-solid fa-inbox mr-2"></i>Sin oportunidades</div>` : ''}
+
+            ${cards.map(deal => `
+                <div class="deal-card"
+                     id="deal-${deal.id}"
+                     draggable="true"
+                     ondragstart="onDragStart(event, '${deal.id}')"
+                     ondragend="onDragEnd(event)">
+
+                    <button class="deal-del-btn" onclick="deleteDeal('${deal.id}', event)" title="Eliminar">
+                        <i class="fa-solid fa-times"></i>
+                    </button>
+
+                    <div class="deal-company">${esc(deal.company)}</div>
+                    <div class="deal-contact">
+                        <i class="fa-solid fa-user text-slate-300" style="font-size:9px;"></i>
+                        ${esc(deal.contact)}
+                    </div>
+                    ${deal.phone ? `<div class="deal-contact mt-1"><i class="fa-brands fa-whatsapp text-emerald-400" style="font-size:9px;"></i> ${esc(deal.phone)}</div>` : ''}
+                    <div class="deal-program">${esc(deal.program)}</div>
+                    <div class="deal-value">
+                        <span>$${deal.value.toLocaleString('es-CO')}</span>
+                        <span class="deal-days"><i class="fa-regular fa-clock" style="font-size:9px;"></i> ${deal.days}d</span>
+                    </div>
+                </div>
+            `).join('')}
+        </div>`;
+    }).join('');
+}
+
+// ════════════════════════════════════════════════
+// DRAG & DROP — HTML5 nativo
+// ════════════════════════════════════════════════
+function onDragStart(e, id) {
+    draggedId = id;
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => document.getElementById(`deal-${id}`)?.classList.add('dragging'), 0);
+}
+
+function onDragEnd(e) {
+    document.querySelectorAll('.deal-card').forEach(el => el.classList.remove('dragging'));
+    document.querySelectorAll('.kanban-col').forEach(el => el.classList.remove('drag-over'));
+}
+
+function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('drag-over');
+}
+
+function onDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+async function onDrop(e, stage) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+
+    if (!draggedId) return;
+    const deal = allDeals.find(d => d.id === draggedId);
+    if (!deal || deal.stage === stage) return;
+
+    // Optimistic update
+    deal.stage = stage;
+    updateKPIs();
+    renderKanban();
+
+    // Persistir en el backend
+    try {
+        await fetch(`/business/api/deals/${draggedId}`, {
+            method: 'PATCH',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({stage})
+        });
+    } catch(e) {
+        console.warn('Error al actualizar etapa:', e);
+    }
+
+    draggedId = null;
+}
+
+// ════════════════════════════════════════════════
+// AGREGAR OPORTUNIDAD
+// ════════════════════════════════════════════════
+async function submitDeal(e) {
+    e.preventDefault();
+    const payload = {
+        company: document.getElementById('d-company').value,
+        contact: document.getElementById('d-contact').value,
+        phone: document.getElementById('d-phone').value,
+        program: document.getElementById('d-program').value,
+        stage: document.getElementById('d-stage').value,
+        value: document.getElementById('d-value').value,
+    };
+
+    const res = await fetch('/business/api/deals', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+        document.getElementById('modal-add-deal').classList.remove('open');
+        document.getElementById('form-add-deal').reset();
+        await loadDeals();
+        Swal.fire({ icon:'success', title:'¡Oportunidad registrada!', text:'La oportunidad fue agregada al pipeline.', timer:2000, showConfirmButton:false, customClass:{popup:'font-sans text-sm'} });
+    } else {
+        Swal.fire({ icon:'error', title:'Error', text:'No se pudo guardar la oportunidad.', customClass:{popup:'font-sans text-sm'} });
+    }
+}
+
+// ════════════════════════════════════════════════
+// ELIMINAR DEAL
+// ════════════════════════════════════════════════
+async function deleteDeal(id, e) {
+    e.stopPropagation();
+    const deal = allDeals.find(d => d.id === id);
+    if (!deal) return;
+
+    const result = await Swal.fire({
+        title: '¿Eliminar oportunidad?',
+        html: `Se eliminará: <b>${esc(deal.company)}</b>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#94a3b8',
+        confirmButtonText: 'Eliminar',
+        cancelButtonText: 'Cancelar',
+        customClass: {popup:'font-sans text-sm'}
+    });
+
+    if (result.isConfirmed) {
+        const res = await fetch(`/business/api/deals/${id}`, {method:'DELETE'});
+        if (res.ok) await loadDeals();
+    }
+}
+
+// ════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════
+function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    loadDeals();
+
+    // Cerrar modal al hacer clic fuera
+    document.getElementById('modal-add-deal').addEventListener('click', function(e) {
+        if (e.target === this) this.classList.remove('open');
+    });
+});
+</script>
+{% endblock %}

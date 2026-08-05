@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escuela LatinPyme - Automatización IA</title>
+    <!-- Tailwind CSS CDN para la interfaz -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        latinBlue: '#2563eb',
+                        latinLightBg: '#f8fafc',
+                        latinSidebar: '#ebf3ff'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-latinLightBg font-sans text-gray-700 flex h-screen overflow-hidden">
+
+    <!-- BARRA LATERAL (SIDEBAR INTERACTIVO) -->
+    <aside class="w-64 bg-latinSidebar border-r border-blue-100 flex flex-col p-4 justify-between">
+        <div>
+            <!-- LOGO LATINPYME -->
+            <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-100 text-center mb-6">
+                <span class="text-red-600 font-extrabold text-xl tracking-tight">Latin<span class="text-gray-800">Pyme</span></span>
+                <p class="text-xs text-gray-500 font-medium mt-1">Escuela LatinPyme</p>
+            </div>
+
+            <!-- BOTONES DE NAVEGACIÓN -->
+            <nav class="space-y-2">
+                <button onclick="cambiarModulo('datacenter')" id="btn-datacenter" class="modulo-btn w-full text-left px-4 py-2.5 rounded-lg bg-latinBlue text-white font-medium text-sm flex items-center gap-2 shadow-sm">
+                    📊 Data Center
+                </button>
+                <button onclick="cambiarModulo('aprendizaje')" id="btn-aprendizaje" class="modulo-btn w-full text-left px-4 py-2.5 rounded-lg text-latinBlue hover:bg-blue-100 font-medium text-sm transition">
+                    🎓 Aprendizaje
+                </button>
+                <button onclick="cambiarModulo('negocios')" id="btn-negocios" class="modulo-btn w-full text-left px-4 py-2.5 rounded-lg text-latinBlue hover:bg-blue-100 font-medium text-sm transition">
+                    💼 Negocios
+                </button>
+                <button onclick="cambiarModulo('campanas')" id="btn-campanas" class="modulo-btn w-full text-left px-4 py-2.5 rounded-lg text-latinBlue hover:bg-blue-100 font-medium text-sm transition">
+                    💬 Campañas WhatsApp
+                </button>
+            </nav>
+        </div>
+
+        <div class="text-xs text-gray-400 text-center">
+            v1.0 - Módulo IA LMS
+        </div>
+    </aside>
+
+    <!-- ÁREA PRINCIPAL -->
+    <main class="flex-1 flex flex-col overflow-y-auto">
+        <!-- HEADER -->
+        <header class="bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center">
+            <h1 id="tituloModulo" class="text-lg font-semibold text-gray-800">Data Center - Análisis de Registros LMS</h1>
+            <span class="bg-blue-50 text-latinBlue text-xs px-3 py-1 rounded-full font-medium">Modo Evaluación IA / Insensible a Tildes</span>
+        </header>
+
+        <!-- MÓDULO 1: DATA CENTER -->
+        <div id="seccion-datacenter" class="modulo-contenido p-8 space-y-6">
+            <!-- PANEL DE CARGA -->
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h2 class="text-md font-semibold text-gray-800 mb-4"> Configuración de Campaña y Carga de Registros</h2>
+                
+                <form id="campaignForm" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Nombre del Curso Objetivo</label>
+                            <input type="text" id="nombreCurso" value="Taller de Finanzas y Presupuestos" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-latinBlue outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Público Objetivo (Filtro de Cargo)</label>
+                            <input type="text" id="audienciaCurso" value="finanzas talento humano logistica contabilidad" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-latinBlue outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Archivo Excel de Registrados (LMS)</label>
+                        <input type="file" id="excelFile" accept=".xlsx, .xls" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-gray-50">
+                    </div>
+
+                    <button type="button" onclick="procesarExcel()" class="w-full bg-latinBlue text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                        🔄 Cargar y Analizar Registros
+                    </button>
+                </form>
+            </div>
+
+            <!-- TABLA Y FILTROS -->
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-md font-semibold text-gray-800">Registros Analizados</h2>
+                        <span id="contadorRegistros" class="text-xs text-gray-500 font-medium">Total: 0 registros</span>
+                    </div>
+
+                    <!-- CONTROLES DE FILTRO Y ENVÍO -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-medium text-gray-500">Filtrar:</span>
+                        <select id="filtroEstado" onchange="aplicarFiltro()" class="border border-gray-300 rounded-lg text-xs p-2 bg-white focus:ring-2 focus:ring-latinBlue outline-none">
+                            <option value="todos">Todos los Registros</option>
+                            <option value="seleccionados" selected>Solo Seleccionados (Candidatos)</option>
+                            <option value="descartados">Solo Descartados</option>
+                        </select>
+
+                        <button id="btnEnviarCampaña" onclick="dispararCampaña()" disabled class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg text-xs transition flex items-center gap-2 opacity-50 cursor-not-allowed shadow-sm">
+                            📲 Enviar Campaña WhatsApp (<span id="countSeleccionados">0</span>)
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-600">
+                        <thead class="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 uppercase">
+                            <tr>
+                                <th class="py-3 px-4">Nombre Completo</th>
+                                <th class="py-3 px-4">Correo</th>
+                                <th class="py-3 px-4">Cargo / Profesión</th>
+                                <th class="py-3 px-4">Teléfono</th>
+                                <th class="py-3 px-4">Estado IA</th>
+                                <th class="py-3 px-4">Razonamiento</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaResultados" class="divide-y divide-gray-100">
+                            <tr>
+                                <td colspan="6" class="text-center py-6 text-gray-400">No hay datos procesados. Sube un archivo Excel y presiona "Cargar y Analizar".</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO 2: APRENDIZAJE -->
+        <div id="seccion-aprendizaje" class="modulo-contenido hidden p-8">
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h2 class="text-md font-semibold text-gray-800 mb-2">🎓 Módulo de Aprendizaje</h2>
+                <p class="text-sm text-gray-500">Gestión de programas académicos y módulos del aula virtual.</p>
+            </div>
+        </div>
+
+        <!-- MÓDULO 3: NEGOCIOS -->
+        <div id="seccion-negocios" class="modulo-contenido hidden p-8">
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h2 class="text-md font-semibold text-gray-800 mb-2">💼 Módulo de Negocios</h2>
+                <p class="text-sm text-gray-500">Métricas comerciales y tasas de conversión.</p>
+            </div>
+        </div>
+
+        <!-- MÓDULO 4: CAMPAÑAS WHATSAPP -->
+        <div id="seccion-campanas" class="modulo-contenido hidden p-8">
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h2 class="text-md font-semibold text-gray-800 mb-2">💬 Configuración TopChat / Meta WhatsApp</h2>
+                <p class="text-sm text-gray-500 mb-4">Gestión de plantillas HSM y credenciales de API.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- MODAL DE BARRA DE PROGRESO DE ENVÍO -->
+    <div id="modalProgreso" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl border border-gray-100">
+            <h3 class="text-md font-semibold text-gray-800 mb-2">Enviando Campaña por WhatsApp</h3>
+            <p id="textoProgreso" class="text-xs text-gray-500 mb-4">Iniciando el proceso de envío masivo...</p>
+            
+            <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden mb-3">
+                <div id="barraRelleno" class="bg-latinBlue h-full w-0 transition-all duration-200"></div>
+            </div>
+
+            <div class="flex justify-between text-xs text-gray-500 font-medium">
+                <span id="porcentajeTexto">0%</span>
+                <span id="conteoProgreso">0 / 0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let todosLosRegistros = [];
+
+        // Cambio de pestañas navegables
+        function cambiarModulo(idModulo) {
+            document.querySelectorAll('.modulo-contenido').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.modulo-btn').forEach(btn => {
+                btn.classList.remove('bg-latinBlue', 'text-white', 'shadow-sm');
+                btn.classList.add('text-latinBlue', 'hover:bg-blue-100');
+            });
+
+            document.getElementById(`seccion-${idModulo}`).classList.remove('hidden');
+            const btnActivo = document.getElementById(`btn-${idModulo}`);
+            btnActivo.classList.add('bg-latinBlue', 'text-white', 'shadow-sm');
+            btnActivo.classList.remove('text-latinBlue', 'hover:bg-blue-100');
+
+            const titulos = {
+                'datacenter': 'Data Center - Análisis de Registros LMS',
+                'aprendizaje': 'Aprendizaje - Gestión de Programas',
+                'negocios': 'Negocios - Métricas de Inscritos',
+                'campanas': 'Campañas WhatsApp - Integración TopChat'
+            };
+            document.getElementById('tituloModulo').innerText = titulos[idModulo];
+        }
+
+        // Cargar y procesar Excel
+        async function procesarExcel() {
+            const fileInput = document.getElementById('excelFile');
+            const nombreCurso = document.getElementById('nombreCurso').value;
+            const audienciaCurso = document.getElementById('audienciaCurso').value;
+
+            if (!fileInput.files[0]) {
+                alert('Por favor selecciona un archivo Excel primero.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('nombre_curso', nombreCurso);
+            formData.append('audiencia_curso', audienciaCurso);
+
+            const tbody = document.getElementById('tablaResultados');
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-blue-600 font-medium">⏳ Procesando Nombres, Cargos y Teléfonos... Por favor espera.</td></tr>';
+
+            try {
+                const response = await fetch('/analizar', { method: 'POST', body: formData });
+                const result = await response.json();
+
+                if (result.exito) {
+                    todosLosRegistros = result.data;
+                    aplicarFiltro();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error al procesar el archivo Excel.');
+                console.error(error);
+            }
+        }
+
+        // Renderizado con Filtro
+        function aplicarFiltro() {
+            const filtro = document.getElementById('filtroEstado').value;
+            const tbody = document.getElementById('tablaResultados');
+            tbody.innerHTML = '';
+
+            let filtrados = [];
+            if (filtro === 'seleccionados') {
+                filtrados = todosLosRegistros.filter(r => r.es_candidato === true);
+            } else if (filtro === 'descartados') {
+                filtrados = todosLosRegistros.filter(r => r.es_candidato === false);
+            } else {
+                filtrados = todosLosRegistros;
+            }
+
+            const seleccionadosTotales = todosLosRegistros.filter(r => r.es_candidato === true);
+            
+            document.getElementById('contadorRegistros').innerText = `Mostrando: ${filtrados.length} de ${todosLosRegistros.length} registros`;
+            document.getElementById('countSeleccionados').innerText = seleccionadosTotales.length;
+
+            const btnWA = document.getElementById('btnEnviarCampaña');
+            if (seleccionadosTotales.length > 0) {
+                btnWA.disabled = false;
+                btnWA.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                btnWA.disabled = true;
+                btnWA.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+
+            if (filtrados.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-6 text-gray-400">No hay registros para mostrar con el filtro seleccionado.</td></tr>';
+                return;
+            }
+
+            filtrados.forEach(item => {
+                const badge = item.es_candidato 
+                    ? '<span class="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-0.5 rounded">Seleccionado</span>'
+                    : '<span class="bg-rose-100 text-rose-800 text-xs font-semibold px-2.5 py-0.5 rounded">Descartado</span>';
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="py-3 px-4 font-medium text-gray-900">${item.nombre}</td>
+                        <td class="py-3 px-4 text-xs">${item.email}</td>
+                        <td class="py-3 px-4 text-xs">${item.cargo}</td>
+                        <td class="py-3 px-4 text-xs">${item.telefono || 'Sin Teléfono'}</td>
+                        <td class="py-3 px-4">${badge}</td>
+                        <td class="py-3 px-4 text-xs">${item.razon}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Envío de Campaña con Barra de Progreso
+        async function dispararCampaña() {
+            const seleccionados = todosLosRegistros.filter(r => r.es_candidato === true);
+
+            if (seleccionados.length === 0) {
+                alert('No hay candidatos seleccionados.');
+                return;
+            }
+
+            if (!confirm(`¿Confirmas el envío de la campaña a los ${seleccionados.length} destinatarios seleccionados?`)) {
+                return;
+            }
+
+            const modal = document.getElementById('modalProgreso');
+            const barra = document.getElementById('barraRelleno');
+            const porcentaje = document.getElementById('porcentajeTexto');
+            const conteo = document.getElementById('conteoProgreso');
+            const texto = document.getElementById('textoProgreso');
+
+            modal.classList.remove('hidden');
+            let procesados = 0;
+            const total = seleccionados.length;
+
+            const intervalo = setInterval(() => {
+                if (procesados < total) {
+                    procesados++;
+                    const pct = Math.round((procesados / total) * 100);
+                    barra.style.width = `${pct}%`;
+                    porcentaje.innerText = `${pct}%`;
+                    conteo.innerText = `${procesados} / ${total}`;
+                    texto.innerText = `Enviando mensaje a ${seleccionados[procesados - 1].nombre}...`;
+                } else {
+                    clearInterval(intervalo);
+                }
+            }, 120);
+
+            try {
+                const response = await fetch('/enviar_campana', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ destinatarios: seleccionados })
+                });
+
+                const result = await response.json();
+
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    if (result.exito) {
+                        alert(`¡Campaña finalizada!\n\nEnviados con éxito: ${result.exitosos}\nFallidos: ${result.fallidos}`);
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                }, (total * 120) + 400);
+
+            } catch (error) {
+                modal.classList.add('hidden');
+                alert('Error al enviar la campaña.');
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>

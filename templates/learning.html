@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+
+{% block title %}Aprendizaje — Escuela LatinPyme{% endblock %}
+
+{% block header_title %}Módulo Académico{% endblock %}
+
+{% block header_badges %}
+<span class="bg-violet-50 text-violet-700 text-xs px-3 py-1 rounded-full font-semibold border border-violet-100 flex items-center gap-1.5">
+    <i class="fa-solid fa-graduation-cap text-xs"></i>
+    LMS Activo
+</span>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* ── Badges de estado de curso ── */
+    .badge-activo    { background:#d1fae5; color:#065f46; border:1px solid #a7f3d0; }
+    .badge-programado{ background:#ede9fe; color:#5b21b6; border:1px solid #ddd6fe; }
+    .badge-finalizado{ background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+
+    /* ── Progress bar de inscripciones ── */
+    .quota-bar-wrap { width: 80px; background: #f1f5f9; border-radius: 4px; height: 6px; display:inline-block; vertical-align: middle; margin-right: 6px; overflow:hidden; }
+    .quota-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #6366f1, #8b5cf6); transition: width 0.4s; }
+    .quota-bar-fill.full { background: linear-gradient(90deg, #10b981, #059669); }
+
+    /* ── Hover row ── */
+    .tr-row { transition: background 0.15s; }
+    .tr-row:hover { background: #f8fafc; }
+
+    /* ── Modal overlay ── */
+    .modal-overlay {
+        position: fixed; inset: 0;
+        background: rgba(15,23,42,0.55);
+        backdrop-filter: blur(4px);
+        z-index: 50;
+        display: none;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-card {
+        background: #fff;
+        border-radius: 20px;
+        padding: 28px;
+        max-width: 520px;
+        width: 100%;
+        margin: 16px;
+        box-shadow: 0 25px 60px rgba(0,0,0,0.15);
+        animation: modalIn 0.25s ease;
+    }
+    @keyframes modalIn {
+        from { opacity:0; transform: scale(0.95) translateY(8px); }
+        to   { opacity:1; transform: scale(1) translateY(0); }
+    }
+    .form-label { display:block; font-size:11px; font-weight:700; color:#64748b; margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em; }
+    .form-input {
+        width:100%; border:1px solid #e2e8f0; border-radius:10px;
+        padding:9px 12px; font-size:13px; color:#1e293b; outline:none;
+        font-family:'Outfit',sans-serif; transition: border-color 0.2s;
+    }
+    .form-input:focus { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,0.1); }
+
+    /* ── KPI cards hover ── */
+    .kpi-card { transition: transform 0.2s, box-shadow 0.2s; }
+    .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(99,102,241,0.12); }
+
+    /* ── Filtros de estado ── */
+    .filter-btn { cursor:pointer; transition:all 0.15s; }
+    .filter-btn.selected { background:#6366f1; color:#fff; border-color:#6366f1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    {# ── KPI CARDS ── #}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div class="kpi-card bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center text-lg flex-shrink-0">
+                <i class="fa-solid fa-book-open"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Cursos</p>
+                <p class="text-2xl font-bold text-slate-800" id="kpi-total">0</p>
+            </div>
+        </div>
+
+        <div class="kpi-card bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg flex-shrink-0">
+                <i class="fa-solid fa-users"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Alumnos Inscritos</p>
+                <p class="text-2xl font-bold text-slate-800" id="kpi-enrolled">0</p>
+            </div>
+        </div>
+
+        <div class="kpi-card bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg flex-shrink-0">
+                <i class="fa-solid fa-calendar-days"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Próximos Eventos</p>
+                <p class="text-2xl font-bold text-slate-800" id="kpi-upcoming">0</p>
+            </div>
+        </div>
+
+        <div class="kpi-card bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg flex-shrink-0">
+                <i class="fa-solid fa-certificate"></i>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Certificados</p>
+                <p class="text-2xl font-bold text-slate-800" id="kpi-certs">0</p>
+            </div>
+        </div>
+    </div>
+
+    {# ── TABLA DE CURSOS ── #}
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h2 class="font-bold text-slate-800 text-sm">Catálogo de Cursos y Eventos</h2>
+                <p class="text-[10px] text-slate-400 mt-0.5">Gestión de diplomados, cursos y eventos corporativos de la Escuela LatinPyme</p>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                {# Filtros de estado #}
+                <div class="flex items-center gap-1.5">
+                    <button class="filter-btn selected text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600" data-filter="all" onclick="setFilter(this,'all')">Todos</button>
+                    <button class="filter-btn text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600" data-filter="Activo" onclick="setFilter(this,'Activo')">Activos</button>
+                    <button class="filter-btn text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600" data-filter="Programado" onclick="setFilter(this,'Programado')">Programados</button>
+                    <button class="filter-btn text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600" data-filter="Finalizado" onclick="setFilter(this,'Finalizado')">Finalizados</button>
+                </div>
+                {# Buscador #}
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]"></i>
+                    <input type="text" id="search-courses" placeholder="Buscar curso..." class="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-full outline-none focus:border-brand-400 font-medium w-44 transition">
+                </div>
+                <button onclick="document.getElementById('modal-add-course').classList.add('open')"
+                        class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition shadow-sm shadow-brand-500/20">
+                    <i class="fa-solid fa-plus"></i> Nuevo Curso
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="bg-slate-50">
+                    <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        <th class="py-3 px-5">Curso / Evento</th>
+                        <th class="py-3 px-5">Tipo</th>
+                        <th class="py-3 px-5">Instructor</th>
+                        <th class="py-3 px-5">Fechas</th>
+                        <th class="py-3 px-5">Cupos</th>
+                        <th class="py-3 px-5">Estado</th>
+                        <th class="py-3 px-5">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="courses-tbody" class="divide-y divide-slate-100 text-xs text-slate-600">
+                    <tr>
+                        <td colspan="7" class="py-10 text-center text-slate-400">
+                            <i class="fa-solid fa-spinner animate-spin mr-2"></i> Cargando cursos...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════
+   MODAL — Agregar Nuevo Curso
+══════════════════════════════════════ #}
+<div id="modal-add-course" class="modal-overlay">
+    <div class="modal-card">
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-10 h-10 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center">
+                <i class="fa-solid fa-book-medical text-base"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-slate-800 text-sm">Agregar Nuevo Curso</h3>
+                <p class="text-[10px] text-slate-400">Complete los datos del diplomado, curso o evento</p>
+            </div>
+            <button onclick="document.getElementById('modal-add-course').classList.remove('open')" class="ml-auto text-slate-400 hover:text-slate-600 text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form id="form-add-course" class="space-y-4" onsubmit="submitCourse(event)">
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                    <label class="form-label">Nombre del Curso / Evento *</label>
+                    <input id="f-name" class="form-input" type="text" placeholder="Ej: Diplomado en Liderazgo Empresarial" required>
+                </div>
+                <div>
+                    <label class="form-label">Tipo *</label>
+                    <select id="f-type" class="form-input" required>
+                        <option value="">Seleccionar...</option>
+                        <option value="Diplomado">Diplomado</option>
+                        <option value="Curso">Curso</option>
+                        <option value="Evento">Evento</option>
+                        <option value="Taller">Taller</option>
+                        <option value="Seminario">Seminario</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Estado Inicial *</label>
+                    <select id="f-status" class="form-input" required>
+                        <option value="Programado">Programado</option>
+                        <option value="Activo">Activo</option>
+                    </select>
+                </div>
+                <div class="col-span-2">
+                    <label class="form-label">Instructor / Ponente *</label>
+                    <input id="f-instructor" class="form-input" type="text" placeholder="Ej: Dr. Hernán Castillo" required>
+                </div>
+                <div>
+                    <label class="form-label">Fecha Inicio *</label>
+                    <input id="f-date-start" class="form-input" type="date" required>
+                </div>
+                <div>
+                    <label class="form-label">Fecha Fin *</label>
+                    <input id="f-date-end" class="form-input" type="date" required>
+                </div>
+                <div>
+                    <label class="form-label">Cupos Disponibles *</label>
+                    <input id="f-quota" class="form-input" type="number" min="1" max="500" placeholder="30" required>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button type="button" onclick="document.getElementById('modal-add-course').classList.remove('open')"
+                        class="flex-1 border border-slate-200 text-slate-600 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-50 transition">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="flex-1 bg-brand-600 hover:bg-brand-700 text-white py-2.5 rounded-xl text-sm font-bold transition shadow-sm shadow-brand-500/20">
+                    <i class="fa-solid fa-plus mr-1"></i> Agregar Curso
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let allCourses = [];
+let activeFilter = 'all';
+
+// ── Cargar cursos del backend ──
+async function loadCourses() {
+    try {
+        const res = await fetch('/learning/api/courses');
+        allCourses = await res.json();
+        updateKPIs();
+        renderCourses();
+    } catch(e) {
+        document.getElementById('courses-tbody').innerHTML =
+            `<tr><td colspan="7" class="py-10 text-center text-rose-500 text-xs"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Error al cargar cursos. Verifique que el servidor esté activo.</td></tr>`;
+    }
+}
+
+// ── KPIs ──
+function updateKPIs() {
+    const total = allCourses.length;
+    const enrolled = allCourses.reduce((s, c) => s + c.enrolled, 0);
+    const upcoming = allCourses.filter(c => c.status !== 'Finalizado').length;
+    const certs = allCourses.reduce((s, c) => s + c.certificates, 0);
+    document.getElementById('kpi-total').textContent = total;
+    document.getElementById('kpi-enrolled').textContent = enrolled;
+    document.getElementById('kpi-upcoming').textContent = upcoming;
+    document.getElementById('kpi-certs').textContent = certs;
+}
+
+// ── Filtro de estado ──
+function setFilter(btn, filter) {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    activeFilter = filter;
+    renderCourses();
+}
+
+// ── Render tabla ──
+function renderCourses() {
+    const query = document.getElementById('search-courses').value.toLowerCase();
+    let courses = allCourses;
+
+    if (activeFilter !== 'all') courses = courses.filter(c => c.status === activeFilter);
+    if (query) courses = courses.filter(c => c.name.toLowerCase().includes(query) || c.instructor.toLowerCase().includes(query));
+
+    const tbody = document.getElementById('courses-tbody');
+    if (courses.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="py-10 text-center text-slate-400 text-xs"><i class="fa-solid fa-inbox text-2xl opacity-30 block mb-2 mx-auto"></i>Sin cursos para mostrar</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = courses.map(c => {
+        const pct = c.quota > 0 ? Math.min(100, Math.round(c.enrolled / c.quota * 100)) : 0;
+        const badgeClass = c.status === 'Activo' ? 'badge-activo' : c.status === 'Programado' ? 'badge-programado' : 'badge-finalizado';
+        const typeBg = c.type === 'Diplomado' ? 'bg-violet-50 text-violet-700' : c.type === 'Evento' ? 'bg-amber-50 text-amber-700' : 'bg-sky-50 text-sky-700';
+
+        return `
+        <tr class="tr-row">
+            <td class="py-3.5 px-5">
+                <p class="font-semibold text-slate-800 text-[12.5px] leading-tight">${esc(c.name)}</p>
+            </td>
+            <td class="py-3.5 px-5">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${typeBg}">${esc(c.type)}</span>
+            </td>
+            <td class="py-3.5 px-5">
+                <span class="text-slate-600">${esc(c.instructor)}</span>
+            </td>
+            <td class="py-3.5 px-5 text-slate-500">
+                <span class="block">${fmtDate(c.date_start)}</span>
+                <span class="block text-[10px] text-slate-400">→ ${fmtDate(c.date_end)}</span>
+            </td>
+            <td class="py-3.5 px-5">
+                <div class="flex items-center gap-2">
+                    <div class="quota-bar-wrap">
+                        <div class="quota-bar-fill ${pct >= 100 ? 'full' : ''}" style="width:${pct}%"></div>
+                    </div>
+                    <span class="text-slate-600">${c.enrolled}/${c.quota}</span>
+                </div>
+            </td>
+            <td class="py-3.5 px-5">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${badgeClass}">${esc(c.status)}</span>
+            </td>
+            <td class="py-3.5 px-5">
+                <div class="flex items-center gap-1.5">
+                    ${c.status === 'Finalizado' && c.certificates === 0 ? `
+                        <button onclick="certify('${c.id}')" class="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg hover:bg-emerald-100 transition flex items-center gap-1">
+                            <i class="fa-solid fa-certificate"></i> Certificar
+                        </button>
+                    ` : c.certificates > 0 ? `
+                        <span class="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-1 rounded-lg flex items-center gap-1">
+                            <i class="fa-solid fa-check-circle"></i> ${c.certificates} Emitidos
+                        </span>
+                    ` : ''}
+                    <button onclick="deleteCourse('${c.id}', '${esc(c.name)}')" class="text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200 px-2 py-1 rounded-lg hover:bg-rose-100 transition flex items-center gap-1">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// ── Agregar curso ──
+async function submitCourse(e) {
+    e.preventDefault();
+    const payload = {
+        name: document.getElementById('f-name').value,
+        type: document.getElementById('f-type').value,
+        status: document.getElementById('f-status').value,
+        instructor: document.getElementById('f-instructor').value,
+        date_start: document.getElementById('f-date-start').value,
+        date_end: document.getElementById('f-date-end').value,
+        quota: document.getElementById('f-quota').value,
+    };
+
+    const res = await fetch('/learning/api/courses', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+        document.getElementById('modal-add-course').classList.remove('open');
+        document.getElementById('form-add-course').reset();
+        await loadCourses();
+        Swal.fire({ icon:'success', title:'¡Curso agregado!', text:'El nuevo curso ha sido registrado exitosamente.', timer:2000, showConfirmButton:false, customClass:{popup:'font-sans text-sm'} });
+    } else {
+        Swal.fire({ icon:'error', title:'Error', text:'No se pudo guardar el curso. Revise los campos.', customClass:{popup:'font-sans text-sm'} });
+    }
+}
+
+// ── Certificar alumnos ──
+async function certify(id) {
+    const res = await fetch(`/learning/api/courses/${id}/certify`, {method:'POST'});
+    if (res.ok) {
+        await loadCourses();
+        Swal.fire({ icon:'success', title:'¡Certificados emitidos!', text:'Todos los alumnos inscritos han recibido su certificado.', timer:2500, showConfirmButton:false, customClass:{popup:'font-sans text-sm'} });
+    }
+}
+
+// ── Eliminar curso ──
+async function deleteCourse(id, name) {
+    const result = await Swal.fire({
+        title: '¿Eliminar curso?',
+        html: `Se eliminará permanentemente:<br><b>${name}</b>`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#94a3b8',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        customClass: {popup:'font-sans text-sm'}
+    });
+    if (result.isConfirmed) {
+        const res = await fetch(`/learning/api/courses/${id}`, {method:'DELETE'});
+        if (res.ok) {
+            await loadCourses();
+        }
+    }
+}
+
+// ── Helpers ──
+function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtDate(d) {
+    if (!d) return '—';
+    const [y,m,day] = d.split('-');
+    return `${day}/${m}/${y}`;
+}
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', () => {
+    loadCourses();
+    document.getElementById('search-courses').addEventListener('input', renderCourses);
+
+    // Cerrar modal al hacer clic fuera
+    document.getElementById('modal-add-course').addEventListener('click', function(e) {
+        if (e.target === this) this.classList.remove('open');
+    });
+});
+</script>
+{% endblock %}

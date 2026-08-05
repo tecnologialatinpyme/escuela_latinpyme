@@ -1,0 +1,464 @@
+{% extends "base.html" %}
+
+{% block title %}Campañas - Escuela LatinPyme{% endblock %}
+
+{% block header_title %}Campañas de WhatsApp{% endblock %}
+
+{% block header_badges %}
+<span class="bg-indigo-50 text-indigo-700 text-xs px-3 py-1 rounded-full font-semibold border border-indigo-100 flex items-center gap-1.5">
+    <i class="fa-solid fa-bullhorn"></i>
+    Meta Cloud API
+</span>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- ESTADO VACÍO (No hay contactos en LocalStorage) -->
+    <div id="campaign-empty-state" class="hidden bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center max-w-lg mx-auto mt-12">
+        <div class="bg-indigo-50 text-indigo-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-sm border border-brand-100">
+            <i class="fa-solid fa-people-group"></i>
+        </div>
+        <h2 class="font-bold text-slate-800 text-base mb-2">No hay prospectos para la campaña</h2>
+        <p class="text-xs text-slate-400 mb-6">Primero debes cargar una base de datos en Excel y calificar a los candidatos ideales utilizando Inteligencia Artificial.</p>
+        <a href="/datacenter" class="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-5 py-3 rounded-xl text-xs shadow-lg shadow-brand-500/20 transition">
+            Ir al Data Center <i class="fa-solid fa-arrow-right"></i>
+        </a>
+    </div>
+
+    <!-- PANEL DE CAMPAÑA ACTIVO -->
+    <div id="campaign-active-state" class="grid grid-cols-1 lg:grid-cols-3 gap-6 hidden">
+        
+        <!-- COLUMNA IZQUIERDA: CONFIGURACIÓN DE ENVÍO -->
+        <div class="space-y-6 lg:col-span-1">
+            
+            <!-- Resumen de Destinatarios -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-brand-500"></i>
+                    Resumen de Campaña
+                </h3>
+                <div class="p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-2 text-xs">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Curso objetivo:</span>
+                        <span id="resumen-curso" class="font-bold text-slate-700">Taller de Finanzas</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Leads seleccionados:</span>
+                        <span id="resumen-leads" class="font-bold text-slate-700">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel de Plantillas Meta -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-folder-open text-brand-500"></i>
+                    Plantilla de Meta
+                </h3>
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Elige una plantilla homologada</label>
+                    <select id="selectTemplate" onchange="seleccionarPlantilla()" class="w-full border border-slate-200 rounded-xl p-3 text-xs focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition font-semibold">
+                        <option value="">Cargando plantillas...</option>
+                    </select>
+                </div>
+
+                <!-- Previsualización Dinámica de Plantilla -->
+                <div id="template-preview-box" class="hidden p-4 bg-brand-50 border border-brand-100 rounded-xl space-y-2">
+                    <span class="text-[10px] uppercase font-bold text-brand-500 block">Previsualización HSM</span>
+                    <p id="template-preview-text" class="text-xs text-slate-700 leading-relaxed font-medium bg-white p-3 rounded-lg border border-brand-100 shadow-sm">
+                        Texto de previsualización
+                    </p>
+                </div>
+
+                <!-- Mapeo de Variables -->
+                <div id="variables-mapping-container" class="hidden space-y-3">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Asociación de Variables</span>
+                    <div id="variables-inputs-list" class="space-y-3">
+                        <!-- Se poblará por JS según variables {{1}}, {{2}}, etc. -->
+                    </div>
+                </div>
+
+                <!-- Botón de Lanzamiento -->
+                <button type="button" onclick="lanzarCampanaMasiva()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-brand-500/20 hover:shadow-brand-500/30 transition-all duration-200 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i>
+                    Lanzar Campaña
+                </button>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: LISTADO DE DESTINATARIOS -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm lg:col-span-2 overflow-hidden flex flex-col justify-between">
+            <div>
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider">Destinatarios Calificados</h3>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Leads importados que serán impactados por esta campaña.</p>
+                    </div>
+                    <button type="button" onclick="limpiarCampana()" class="text-xs text-rose-500 font-semibold hover:underline">
+                        <i class="fa-solid fa-trash-can mr-1"></i> Descartar Lote
+                    </button>
+                </div>
+
+                <!-- Lista de contactos -->
+                <div class="divide-y divide-slate-100 max-h-[480px] overflow-y-auto">
+                    <div id="recipients-list" class="divide-y divide-slate-50">
+                        <!-- Contactos por JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PROGRESS BAR (Envío Masivo) -->
+<div id="modalProgreso" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl border border-slate-100 flex flex-col justify-between max-h-[85vh]">
+        <div>
+            <h3 class="font-bold text-slate-800 text-base mb-1">Enviando Mensajes de WhatsApp</h3>
+            <p id="textoProgreso" class="text-xs text-slate-400 mb-4">Iniciando el canal de comunicación con Meta Cloud API...</p>
+            
+            <!-- Barra de Progreso -->
+            <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden mb-2 border border-slate-200">
+                <div id="barraRelleno" class="bg-brand-600 h-full w-0 transition-all duration-300"></div>
+            </div>
+
+            <div class="flex justify-between text-[10px] text-slate-500 font-bold mb-4">
+                <span id="porcentajeTexto">0% completado</span>
+                <span id="conteoProgreso">0 / 0</span>
+            </div>
+
+            <!-- Logs de Envío -->
+            <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider mb-2">Historial de Transmisión</span>
+            <div id="send-logs-container" class="bg-slate-50 border border-slate-100 rounded-xl p-3 h-48 overflow-y-auto font-mono text-[10px] space-y-1.5">
+                <!-- Logs en vivo -->
+            </div>
+        </div>
+
+        <div class="pt-4 border-t border-slate-100 flex justify-end">
+            <button id="btn-cerrar-modal" type="button" onclick="cerrarModalProgreso()" disabled class="bg-slate-100 text-slate-400 font-semibold px-5 py-2.5 rounded-xl text-xs cursor-not-allowed transition">
+                Cerrar Ventana
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let contactosCargados = [];
+    let templatesList = [];
+    let plantillaSeleccionada = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        inicializarCampana();
+    });
+
+    // Leer contactos de LocalStorage y cargar plantillas
+    async function inicializarCampana() {
+        const contactsRaw = localStorage.getItem('latinpyme_campaign_contacts');
+        const courseName = localStorage.getItem('latinpyme_campaign_course_name');
+
+        if (!contactsRaw) {
+            document.getElementById('campaign-empty-state').classList.remove('hidden');
+            return;
+        }
+
+        contactosCargados = JSON.parse(contactsRaw);
+        
+        document.getElementById('campaign-active-state').classList.remove('hidden');
+        document.getElementById('resumen-curso').innerText = courseName || 'Taller de Finanzas';
+        document.getElementById('resumen-leads').innerText = contactosCargados.length;
+
+        // Cargar previsualización de contactos en el panel derecho
+        renderRecipients();
+
+        // Consultar plantillas desde el backend
+        await cargarPlantillas();
+    }
+
+    function renderRecipients() {
+        const listDiv = document.getElementById('recipients-list');
+        listDiv.innerHTML = '';
+
+        contactosCargados.forEach(c => {
+            listDiv.innerHTML += `
+                <div class="p-4 hover:bg-slate-50 transition flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-slate-800 text-xs">${c.nombre}</div>
+                        <div class="text-[9px] text-slate-400 font-medium">${c.cargo} - ${c.empresa}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs font-mono font-bold text-slate-700">${c.telefono}</div>
+                        <span class="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-semibold border border-indigo-100">Leads Calificado</span>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    async function cargarPlantillas() {
+        const select = document.getElementById('selectTemplate');
+        select.innerHTML = '<option value="">Selecciona plantilla...</option>';
+
+        try {
+            const response = await fetch('/campaigns/api/templates');
+            const data = await response.json();
+
+            if (data.exito && data.templates.length > 0) {
+                templatesList = data.templates;
+                templatesList.forEach(t => {
+                    select.innerHTML += `<option value="${t.name}">${t.name} (${t.status})</option>`;
+                });
+            } else {
+                select.innerHTML = '<option value="">No hay plantillas aprobadas.</option>';
+            }
+        } catch (error) {
+            select.innerHTML = '<option value="">Error al cargar plantillas.</option>';
+            console.error(error);
+        }
+    }
+
+    // Al seleccionar plantilla, analizar variables {{1}}, {{2}}...
+    function seleccionarPlantilla() {
+        const name = document.getElementById('selectTemplate').value;
+        const previewBox = document.getElementById('template-preview-box');
+        const mappingContainer = document.getElementById('variables-mapping-container');
+        
+        if (!name) {
+            previewBox.classList.add('hidden');
+            mappingContainer.classList.add('hidden');
+            plantillaSeleccionada = null;
+            return;
+        }
+
+        plantillaSeleccionada = templatesList.find(t => t.name === name);
+        if (!plantillaSeleccionada) return;
+
+        // Buscar texto de la plantilla en los componentes
+        const bodyComponent = plantillaSeleccionada.components.find(c => c.type === 'BODY');
+        const text = bodyComponent ? bodyComponent.text : "Plantilla sin cuerpo de texto.";
+
+        document.getElementById('template-preview-text').innerText = text;
+        previewBox.classList.remove('hidden');
+
+        // Buscar cuántas variables {{N}} tiene el texto
+        const regex = /\{\{(\d+)\}\}/g;
+        let match;
+        const variables = [];
+        
+        while ((match = regex.exec(text)) !== null) {
+            const varNum = match[1];
+            if (!variables.includes(varNum)) {
+                variables.push(varNum);
+            }
+        }
+
+        // Generar lista de inputs de mapeo
+        const listDiv = document.getElementById('variables-inputs-list');
+        listDiv.innerHTML = '';
+
+        if (variables.length > 0) {
+            variables.sort((a, b) => a - b);
+            variables.forEach(vNum => {
+                // Definir selección recomendada
+                let defaultOption = "nombre"; // por defecto {{1}} es Nombre
+                if (parseInt(vNum) === 2) {
+                    defaultOption = "mensaje"; // por defecto {{2}} es el Mensaje de IA
+                } else if (parseInt(vNum) === 3) {
+                    defaultOption = "curso";
+                }
+
+                listDiv.innerHTML += `
+                    <div class="flex items-center justify-between gap-4">
+                        <span class="text-xs font-bold text-slate-500 font-mono">Variable {` + `{` + vNum + `}` + `}</span>
+                        <select class="variable-mapper border border-slate-200 rounded-xl p-2 text-[10px] outline-none font-semibold bg-white focus:border-brand-500" data-var="${vNum}">
+                            <option value="nombre" ${defaultOption === 'nombre' ? 'selected' : ''}>Nombre Completo</option>
+                            <option value="mensaje" ${defaultOption === 'mensaje' ? 'selected' : ''}>Mensaje de IA (Admisión)</option>
+                            <option value="cargo" ${defaultOption === 'cargo' ? 'selected' : ''}>Cargo actual</option>
+                            <option value="empresa" ${defaultOption === 'empresa' ? 'selected' : ''}>Empresa</option>
+                            <option value="curso" ${defaultOption === 'curso' ? 'selected' : ''}>Curso objetivo</option>
+                        </select>
+                    </div>
+                `;
+            });
+            mappingContainer.classList.remove('hidden');
+        } else {
+            mappingContainer.classList.add('hidden');
+        }
+    }
+
+    // Ejecución de la Campaña con Barra de Progreso individual
+    async function lanzarCampanaMasiva() {
+        if (!plantillaSeleccionada) {
+            AlertHelper.error('Selecciona plantilla', 'Debes seleccionar una plantilla antes de lanzar el envío.');
+            return;
+        }
+
+        const mappers = document.querySelectorAll('.variable-mapper');
+        const mapping = {};
+        mappers.forEach(m => {
+            mapping[m.getAttribute('data-var')] = m.value;
+        });
+
+        const total = contactosCargados.length;
+        if (total === 0) return;
+
+        const confirmacion = await Swal.fire({
+            title: '¿Iniciar envío masivo?',
+            text: `Se enviará la plantilla '${plantillaSeleccionada.name}' a los ${total} destinatarios.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#4f46e5',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Sí, enviar ahora',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (!confirmacion.isConfirmed) return;
+
+        // Mostrar Modal de Progreso
+        const modal = document.getElementById('modalProgreso');
+        const logsDiv = document.getElementById('send-logs-container');
+        const barra = document.getElementById('barraRelleno');
+        const porcentaje = document.getElementById('porcentajeTexto');
+        const conteo = document.getElementById('conteoProgreso');
+        const txtProgreso = document.getElementById('textoProgreso');
+        const btnCerrar = document.getElementById('btn-cerrar-modal');
+
+        modal.classList.remove('hidden');
+        logsDiv.innerHTML = '<div class="text-slate-400">Inicializando transmisión de paquetes de datos...</div>';
+        btnCerrar.disabled = true;
+        btnCerrar.className = "bg-slate-100 text-slate-400 font-semibold px-5 py-2.5 rounded-xl text-xs cursor-not-allowed transition";
+
+        let exitosos = 0;
+        let fallidos = 0;
+        const logResultados = [];
+
+        const cursoObjetivo = localStorage.getItem('latinpyme_campaign_course_name') || 'Taller de Finanzas';
+
+        // Ejecutar llamadas secuenciales para que el Asesor vea el progreso real
+        for (let i = 0; i < total; i++) {
+            const lead = contactosCargados[i];
+            txtProgreso.innerText = `Enviando mensaje a ${lead.nombre} (${lead.telefono})...`;
+
+            // Construir los parámetros dinámicos según el mapeo
+            const parametrosEnvio = [];
+            Object.keys(mapping).sort((a,b)=>a-b).forEach(varNum => {
+                const source = mapping[varNum];
+                if (source === 'nombre') parametrosEnvio.push(lead.nombre);
+                else if (source === 'mensaje') parametrosEnvio.push(lead.mensaje);
+                else if (source === 'cargo') parametrosEnvio.push(lead.cargo);
+                else if (source === 'empresa') parametrosEnvio.push(lead.empresa);
+                else if (source === 'curso') parametrosEnvio.push(cursoObjetivo);
+            });
+
+            try {
+                const response = await fetch('/campaigns/api/enviar_individual', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        telefono: lead.telefono,
+                        plantilla_nombre: plantillaSeleccionada.name,
+                        parametros: parametrosEnvio
+                    })
+                });
+
+                const result = await response.json();
+                
+                const hora = new Date().toLocaleTimeString();
+
+                if (result.exito) {
+                    exitosos++;
+                    logsDiv.innerHTML += `
+                        <div class="text-emerald-600 flex justify-between">
+                            <span>[${hora}] ✓ EXITOSO -> ${lead.nombre} (${lead.telefono})</span>
+                            <span class="font-bold">ID: ${result.message_id.substring(0, 15)}...</span>
+                        </div>
+                    `;
+                    logResultados.push({
+                        telefono: lead.telefono,
+                        nombre: lead.nombre,
+                        estado: 'Enviado',
+                        fecha: new Date().toISOString()
+                    });
+                } else {
+                    fallidos++;
+                    logsDiv.innerHTML += `
+                        <div class="text-rose-600">
+                            [${hora}] ✗ FALLIDO -> ${lead.nombre} (${lead.telefono}) | Error: ${result.error}
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                fallidos++;
+                logsDiv.innerHTML += `
+                    <div class="text-rose-600">
+                        [${new Date().toLocaleTimeString()}] ✗ FALLIDO -> ${lead.nombre} | Error de servidor.
+                    </div>
+                `;
+            }
+
+            // Desplazar logs al final
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+
+            // Actualizar barra de progreso
+            const completados = i + 1;
+            const pct = Math.round((completados / total) * 100);
+            barra.style.width = `${pct}%`;
+            porcentaje.innerText = `${pct}% completado`;
+            conteo.innerText = `${completados} / ${total}`;
+        }
+
+        txtProgreso.innerText = "Transmisión finalizada con éxito.";
+        btnCerrar.disabled = false;
+        btnCerrar.className = "bg-brand-600 hover:bg-brand-700 text-white font-semibold px-5 py-2.5 rounded-xl text-xs shadow-md transition cursor-pointer";
+
+        // Persistir en LocalStorage para alimentar el Dashboard
+        const logsAnterioresRaw = localStorage.getItem('latinpyme_sent_logs');
+        let logsAcumulados = [];
+        if (logsAnterioresRaw) {
+            logsAcumulados = JSON.parse(logsAnterioresRaw);
+        }
+        logsAcumulados = logsAcumulados.concat(logResultados);
+        localStorage.setItem('latinpyme_sent_logs', JSON.stringify(logsAcumulados));
+
+        // SweetAlert de resumen
+        Swal.fire({
+            title: 'Campaña finalizada',
+            text: `Envíos exitosos: ${exitosos} | Envíos fallidos: ${fallidos}`,
+            icon: exitosos > 0 ? 'success' : 'error',
+            confirmButtonColor: '#4f46e5'
+        });
+    }
+
+    function cerrarModalProgreso() {
+        document.getElementById('modalProgreso').classList.add('hidden');
+    }
+
+    function limpiarCampana() {
+        Swal.fire({
+            title: '¿Limpiar lote?',
+            text: "Se borrarán los prospectos cargados para esta campaña del navegador.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Sí, borrar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                localStorage.removeItem('latinpyme_campaign_contacts');
+                localStorage.removeItem('latinpyme_campaign_course_name');
+                contactosCargados = [];
+                document.getElementById('campaign-active-state').classList.add('hidden');
+                document.getElementById('campaign-empty-state').classList.remove('hidden');
+                AlertHelper.success('Lote eliminado', 'El lote de campaña ha sido removido.');
+            }
+        });
+    }
+</script>
+{% endblock %}

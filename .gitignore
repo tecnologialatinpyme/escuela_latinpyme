@@ -1,0 +1,29 @@
+# Entorno virtual Python
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Variables de entorno locales
+.env
+
+# Configuración con credenciales (NO subir a GitHub)
+config/config.json
+
+# Datos de conversaciones (se regeneran en producción)
+data/conversations.json
+
+# Uploads de usuarios
+uploads/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp

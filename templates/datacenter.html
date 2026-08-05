@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+
+{% block title %}Data Center - Escuela LatinPyme{% endblock %}
+
+{% block header_title %}Data Center{% endblock %}
+
+{% block header_badges %}
+<span class="bg-indigo-50 text-indigo-700 text-xs px-3 py-1 rounded-full font-semibold border border-indigo-100 flex items-center gap-1.5 animate-pulse">
+    <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+    Perfilado Inteligente de Leads
+</span>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- ALERTAS DE MODO (Simulado vs Real) -->
+    <div id="simulated-alert-bar" class="hidden bg-amber-50 border border-amber-200 text-amber-800 px-6 py-4 rounded-xl flex items-center justify-between shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="bg-amber-100 p-2 rounded-lg text-amber-700">
+                <i class="fa-solid fa-circle-info text-lg"></i>
+            </div>
+            <div>
+                <h4 class="font-bold text-sm">Modo de Evaluación de Respaldo Activo</h4>
+                <p class="text-xs text-amber-600">No se ha detectado una API Key de OpenAI. El análisis se realiza de forma local analizando coincidencias de texto.</p>
+            </div>
+        </div>
+        <a href="/settings" class="text-xs bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3 py-2 rounded-lg transition">
+            Configurar API Key
+        </a>
+    </div>
+
+    <!-- FORMULARIO Y CARGA (Grid de dos columnas para optimizar espacio) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Panel Izquierdo: Configuración del Perfilado -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+            <div>
+                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-gears text-indigo-500"></i>
+                    Filtros de Segmentación
+                </h3>
+                
+                <form id="uploadForm" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Nombre del Curso Objetivo</label>
+                        <input type="text" id="nombreCurso" value="Taller de Finanzas y Presupuestos" class="w-full border border-slate-200 rounded-xl p-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition" placeholder="Ej: Diplomado en Ventas">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Audiencia Objetivo (Palabras Clave)</label>
+                        <textarea id="audienciaCurso" rows="3" class="w-full border border-slate-200 rounded-xl p-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition resize-none" placeholder="Ingresa cargos o profesiones separados por comas o espacios. Ej: finanzas, contabilidad, tesorero">finanzas talento humano logistica contabilidad administracion</textarea>
+                        <span class="text-[10px] text-slate-400 block mt-1">El sistema perfilará automáticamente los registros que coincidan con estos conceptos.</span>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Panel Derecho: Carga de Archivos Drag & Drop -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm lg:col-span-2 flex flex-col justify-between">
+            <div>
+                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-file-excel text-indigo-500"></i>
+                    Importar Registros (.xlsx, .xls, .csv)
+                </h3>
+                
+                <div id="drop-zone" class="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center hover:border-brand-500 transition-all duration-200 cursor-pointer bg-slate-50/50 flex flex-col items-center justify-center min-h-[160px]">
+                    <div class="bg-brand-50 text-brand-600 w-12 h-12 rounded-xl flex items-center justify-center mb-3 text-xl shadow-sm">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-700">Arrastra tu archivo aquí o haz clic para buscar</p>
+                    <p class="text-xs text-slate-400 mt-1">Soporta hojas de cálculo Excel y CSV</p>
+                    <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class="hidden">
+                </div>
+                
+                <div id="file-info-container" class="hidden mt-3 p-3 bg-brand-50 border border-brand-100 rounded-xl flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-brand-700 text-xs">
+                        <i class="fa-solid fa-file-invoice text-base"></i>
+                        <span id="selected-file-name" class="font-bold">documento.xlsx</span>
+                    </div>
+                    <button type="button" onclick="cancelarArchivo()" class="text-slate-400 hover:text-rose-500 transition text-xs">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-6">
+                <button type="button" id="btn-analizar" onclick="procesarRegistros()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-brand-500/20 hover:shadow-brand-500/30 transition-all duration-200 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-circle-play"></i>
+                    Cargar y Analizar Registros con IA
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL DE RESULTADOS -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        
+        <!-- Encabezado de la Tabla & Filtros -->
+        <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h3 class="font-bold text-slate-800 text-lg">Registros LMS Procesados</h3>
+                <p class="text-xs text-slate-400 mt-0.5" id="registro-stats-subtext">Sube una base de datos para comenzar el análisis.</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Buscador rápido -->
+                <div class="relative">
+                    <input type="text" id="busquedaRegistros" onkeyup="aplicarFiltrosYBusqueda()" placeholder="Buscar..." class="border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none w-48 transition">
+                    <i class="fa-solid fa-magnifying-glass text-slate-400 absolute left-3.5 top-3 text-xs"></i>
+                </div>
+
+                <!-- Selector de Filtro -->
+                <select id="filtroSeleccion" onchange="aplicarFiltrosYBusqueda()" class="border border-slate-200 rounded-xl text-xs p-2.5 bg-white focus:border-brand-500 outline-none font-medium">
+                    <option value="todos">Mostrar todos</option>
+                    <option value="candidatos" selected>Solo Candidatos (Aprobados)</option>
+                    <option value="descartados">Solo Descartados</option>
+                </select>
+
+                <!-- Botones de Acción -->
+                <button type="button" id="btn-exportar" onclick="exportarExcel()" disabled class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 font-semibold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2 opacity-50 cursor-not-allowed">
+                    <i class="fa-solid fa-download text-indigo-500"></i> Exportar
+                </button>
+
+                <button type="button" id="btn-crear-campana" onclick="redirigirACampana()" disabled class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-5 py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-600/10 transition flex items-center gap-2 opacity-50 cursor-not-allowed">
+                    <i class="fa-solid fa-bullhorn"></i> Enviar Campaña WA (<span id="total-seleccionados">0</span>)
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+                <thead class="bg-slate-50/70 border-b border-slate-100 text-slate-500 font-bold text-xs uppercase tracking-wider">
+                    <tr>
+                        <th class="py-4 px-6 w-12 text-center">Acción</th>
+                        <th class="py-4 px-6">Contacto</th>
+                        <th class="py-4 px-6">Empresa & Cargo</th>
+                        <th class="py-4 px-6">Celular</th>
+                        <th class="py-4 px-6">Decisión IA</th>
+                        <th class="py-4 px-6">Razonamiento de Admisión</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaResultados" class="divide-y divide-slate-100">
+                    <tr>
+                        <td colspan="6" class="text-center py-16 text-slate-400">
+                            <div class="flex flex-col items-center justify-center gap-3">
+                                <div class="bg-slate-100 text-slate-400 w-14 h-14 rounded-full flex items-center justify-center text-xl">
+                                    <i class="fa-solid fa-folder-open"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-slate-700 text-sm">No hay registros analizados</p>
+                                    <p class="text-xs text-slate-400">Carga un archivo Excel o CSV arriba para iniciar el flujo de IA.</p>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let registrosProcesados = [];
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('excelFile');
+
+    // Inicializar configuraciones visuales del drag and drop
+    dropZone.addEventListener('click', () => fileInput.click());
+    
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-brand-500', 'bg-brand-50/20');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('border-brand-500', 'bg-brand-50/20');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-brand-500', 'bg-brand-50/20');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            mostrarInfoArchivo();
+        }
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) {
+            mostrarInfoArchivo();
+        }
+    });
+
+    function mostrarInfoArchivo() {
+        const file = fileInput.files[0];
+        document.getElementById('selected-file-name').innerText = file.name;
+        document.getElementById('file-info-container').classList.remove('hidden');
+        dropZone.classList.add('hidden');
+    }
+
+    function cancelarArchivo() {
+        fileInput.value = "";
+        document.getElementById('file-info-container').classList.add('hidden');
+        dropZone.classList.remove('hidden');
+    }
+
+    // Verificar si el modo de simulación está activo
+    fetch('/settings/api/get')
+        .then(res => res.json())
+        .then(config => {
+            if (!config.OPENAI_API_KEY) {
+                document.getElementById('simulated-alert-bar').classList.remove('hidden');
+            }
+        });
+
+    // Subir y Procesar Archivo por fetch asíncrono
+    async function procesarRegistros() {
+        const file = fileInput.files[0];
+        const nombreCurso = document.getElementById('nombreCurso').value.trim();
+        const audienciaCurso = document.getElementById('audienciaCurso').value.trim();
+
+        if (!file) {
+            AlertHelper.error('Archivo faltante', 'Por favor, arrastra o selecciona un archivo Excel o CSV.');
+            return;
+        }
+
+        if (!nombreCurso || !audienciaCurso) {
+            AlertHelper.error('Criterios incompletos', 'Completa el nombre del curso y las palabras clave de la audiencia.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('nombre_curso', nombreCurso);
+        formData.append('audiencia_curso', audienciaCurso);
+
+        AlertHelper.loading('Analizando perfiles...', 'Nuestra Inteligencia Artificial está evaluando los cargos y normalizando los números de teléfono.');
+
+        try {
+            const response = await fetch('/datacenter/analizar', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+            AlertHelper.close();
+
+            if (result.exito) {
+                registrosProcesados = result.data;
+                AlertHelper.success('Análisis finalizado', `Se procesaron exitosamente ${result.total_registros} registros.`);
+                aplicarFiltrosYBusqueda();
+            } else {
+                AlertHelper.error('Error de análisis', result.error || 'No se pudo analizar el archivo.');
+            }
+        } catch (error) {
+            AlertHelper.close();
+            AlertHelper.error('Error en el servidor', 'Ocurrió un error inesperado al procesar la solicitud.');
+            console.error(error);
+        }
+    }
+
+    // Renderizar registros con filtros de búsqueda y selección
+    function aplicarFiltrosYBusqueda() {
+        const busqueda = document.getElementById('busquedaRegistros').value.toLowerCase().trim();
+        const filtro = document.getElementById('filtroSeleccion').value;
+        const tbody = document.getElementById('tablaResultados');
+        
+        tbody.innerHTML = '';
+
+        if (registrosProcesados.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-16 text-slate-400">
+                        <div class="flex flex-col items-center justify-center gap-3">
+                            <div class="bg-slate-100 text-slate-400 w-14 h-14 rounded-full flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-folder-open"></i>
+                            </div>
+                            <div>
+                                <p class="font-bold text-slate-700 text-sm">No hay registros analizados</p>
+                                <p class="text-xs text-slate-400">Carga un archivo Excel o CSV arriba para iniciar el flujo de IA.</p>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            desactivarAcciones();
+            return;
+        }
+
+        // Aplicar filtros
+        let filtrados = registrosProcesados.filter(item => {
+            // Filtro por Decisión IA
+            if (filtro === 'candidatos' && !item.es_candidato) return false;
+            if (filtro === 'descartados' && item.es_candidato) return false;
+
+            // Filtro por Buscador rápido
+            if (busqueda) {
+                const nombre = item.nombre.toLowerCase();
+                const correo = item.correo.toLowerCase();
+                const cargo = item.cargo.toLowerCase();
+                const empresa = item.empresa.toLowerCase();
+                return nombre.includes(busqueda) || correo.includes(busqueda) || cargo.includes(busqueda) || empresa.includes(busqueda);
+            }
+            return true;
+        });
+
+        // Contar aprobados seleccionados
+        const aprobados = registrosProcesados.filter(r => r.es_candidato).length;
+        const descartados = registrosProcesados.filter(r => !r.es_candidato).length;
+
+        // Actualizar estadísticas del panel
+        document.getElementById('registro-stats-subtext').innerText = `Total: ${registrosProcesados.length} | Candidatos Aprobados: ${aprobados} | Descartados: ${descartados}`;
+        document.getElementById('total-seleccionados').innerText = aprobados;
+
+        activarAcciones(aprobados);
+
+        if (filtrados.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-12 text-slate-400 text-xs">
+                        No se encontraron registros que coincidan con la búsqueda o filtro aplicados.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        filtrados.forEach((item, idx) => {
+            const badgeCls = item.es_candidato 
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                : 'bg-rose-50 text-rose-700 border border-rose-100';
+
+            const badgeText = item.es_candidato ? 'Aprobado' : 'Descartado';
+            const icon = item.es_candidato ? '<i class="fa-solid fa-circle-check mr-1"></i>' : '<i class="fa-solid fa-circle-xmark mr-1"></i>';
+            const statusBadge = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${badgeCls}">${icon} ${badgeText}</span>`;
+
+            tbody.innerHTML += `
+                <tr class="hover:bg-slate-50/50 transition">
+                    <td class="py-4 px-6 text-center">
+                        <button onclick="toggleSeleccion(${item.id_registro})" class="text-slate-400 hover:text-brand-600 transition text-sm">
+                            <i class="${item.es_candidato ? 'fa-solid fa-square-check text-brand-500 text-lg' : 'fa-regular fa-square text-lg'}"></i>
+                        </button>
+                    </td>
+                    <td class="py-4 px-6">
+                        <div class="font-bold text-slate-800 text-xs">${item.nombre}</div>
+                        <div class="text-[10px] text-slate-400 font-medium">${item.correo}</div>
+                    </td>
+                    <td class="py-4 px-6">
+                        <div class="text-xs font-semibold text-slate-700">${item.cargo}</div>
+                        <div class="text-[10px] text-slate-400">${item.empresa} - ${item.profesion}</div>
+                    </td>
+                    <td class="py-4 px-6">
+                        <div class="text-xs font-mono font-semibold">${item.telefono || '<span class="text-rose-400 text-[10px]">Sin celular</span>'}</div>
+                    </td>
+                    <td class="py-4 px-6">${statusBadge}</td>
+                    <td class="py-4 px-6 text-xs text-slate-500 max-w-xs truncate" title="${item.razon}">
+                        ${item.razon}
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    // Permitir al asesor cambiar de estado (Aprobar/Descartar manualmente)
+    function toggleSeleccion(idRegistro) {
+        const item = registrosProcesados.find(r => r.id_registro === idRegistro);
+        if (item) {
+            item.es_candidato = !item.es_candidato;
+            // Si el asesor aprueba manualmente y no tenía mensaje personalizado, agregar uno genérico
+            if (item.es_candidato && !item.mensaje) {
+                const nombreCurso = document.getElementById('nombreCurso').value || 'Taller LatinPyme';
+                item.mensaje = `Hola ${item.nombre.split(' ')[0]}, nos encantaría invitarte a nuestro curso de ${nombreCurso}.`;
+            }
+            aplicarFiltrosYBusqueda();
+        }
+    }
+
+    function activarAcciones(cantidadAprobados) {
+        const exportar = document.getElementById('btn-exportar');
+        const campana = document.getElementById('btn-crear-campana');
+        
+        exportar.disabled = false;
+        exportar.classList.remove('opacity-50', 'cursor-not-allowed');
+
+        if (cantidadAprobados > 0) {
+            campana.disabled = false;
+            campana.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+            campana.disabled = true;
+            campana.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    }
+
+    function desactivarAcciones() {
+        const exportar = document.getElementById('btn-exportar');
+        const campana = document.getElementById('btn-crear-campana');
+        
+        exportar.disabled = true;
+        exportar.classList.add('opacity-50', 'cursor-not-allowed');
+        
+        campana.disabled = true;
+        campana.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+
+    // Exportar Resultados del análisis en Excel
+    async function exportarExcel() {
+        if (registrosProcesados.length === 0) return;
+
+        AlertHelper.loading('Exportando excel...', 'Generando la hoja de cálculo con el análisis del perfilado.');
+
+        try {
+            const response = await fetch('/datacenter/exportar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ registros: registrosProcesados })
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "perfilado_leads_latinpyme.xlsx";
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                AlertHelper.close();
+            } else {
+                AlertHelper.close();
+                AlertHelper.error('Error al exportar', 'No se pudo generar el archivo de exportación.');
+            }
+        } catch (error) {
+            AlertHelper.close();
+            AlertHelper.error('Error de conexión', 'Ocurrió un error al contactar al servidor.');
+            console.error(error);
+        }
+    }
+
+    // Guardar en LocalStorage y redirigir al módulo de Campañas
+    function redirigirACampana() {
+        const seleccionados = registrosProcesados.filter(r => r.es_candidato);
+        if (seleccionados.length === 0) return;
+
+        const nombreCurso = document.getElementById('nombreCurso').value || 'Curso LatinPyme';
+        const totalAprobados = registrosProcesados.filter(r => r.es_candidato).length;
+        const totalDescartados = registrosProcesados.filter(r => !r.es_candidato).length;
+
+        // Guardar contactos perfilados en el localStorage para cargarlos en Campañas
+        localStorage.setItem('latinpyme_campaign_contacts', JSON.stringify(seleccionados));
+        localStorage.setItem('latinpyme_campaign_course_name', nombreCurso);
+
+        // Guardar estadísticas reales del análisis para el Dashboard
+        localStorage.setItem('latinpyme_analysis_stats', JSON.stringify({
+            totalLeads: registrosProcesados.length,
+            aprobados: totalAprobados,
+            descartados: totalDescartados,
+            nombreCurso: nombreCurso,
+            fechaAnalisis: new Date().toISOString()
+        }));
+
+        // También guardar los registros completos para la tabla de actividad reciente del Dashboard
+        localStorage.setItem('latinpyme_all_records', JSON.stringify(registrosProcesados));
+
+        Swal.fire({
+            title: '¿Crear campaña?',
+            text: `Se exportarán los ${seleccionados.length} candidatos seleccionados al módulo de Campañas.`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#4f46e5',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Sí, continuar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = "/campaigns";
+            }
+        });
+    }
+</script>
+{% endblock %}
