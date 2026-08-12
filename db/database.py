@@ -110,3 +110,109 @@ def delete_conversation(phone: str) -> None:
         client.table('conversations').delete().eq('phone', phone).execute()
     except Exception as e:
         print(f"[DB] Error eliminando conversación {phone}: {e}")
+
+
+# ──────────────────────────────────────────────
+# AI Prompts por Aula
+# ──────────────────────────────────────────────
+def get_ai_prompts() -> list:
+    """Retorna todos los prompts configurados por aula."""
+    try:
+        client = _get_client()
+        res = client.table('ai_prompts').select('*').order('aula_nombre').execute()
+        return res.data or []
+    except Exception as e:
+        print(f"[DB] Error obteniendo ai_prompts: {e}")
+        return []
+
+
+def get_ai_prompt_by_aula(aula_id: str) -> dict | None:
+    """Retorna el prompt configurado para un aula_id específico."""
+    try:
+        client = _get_client()
+        res = (
+            client.table('ai_prompts')
+            .select('*')
+            .eq('aula_id', str(aula_id))
+            .limit(1)
+            .execute()
+        )
+        return res.data[0] if res.data else None
+    except Exception as e:
+        print(f"[DB] Error obteniendo prompt para aula {aula_id}: {e}")
+        return None
+
+
+def save_ai_prompt(aula_id: str, aula_nombre: str, prompt: str, activo: bool = True) -> bool:
+    """Inserta o actualiza (upsert) el prompt de un aula."""
+    try:
+        client = _get_client()
+        client.table('ai_prompts').upsert({
+            'aula_id':     str(aula_id),
+            'aula_nombre': aula_nombre,
+            'prompt':      prompt,
+            'activo':      activo,
+            'updated_at':  'now()'
+        }, on_conflict='aula_id').execute()
+        return True
+    except Exception as e:
+        print(f"[DB] Error guardando prompt para aula {aula_id}: {e}")
+        return False
+
+
+def delete_ai_prompt(aula_id: str) -> bool:
+    """Elimina el prompt de un aula."""
+    try:
+        client = _get_client()
+        client.table('ai_prompts').delete().eq('aula_id', str(aula_id)).execute()
+        return True
+    except Exception as e:
+        print(f"[DB] Error eliminando prompt para aula {aula_id}: {e}")
+        return False
+
+
+def toggle_ai_prompt(aula_id: str, activo: bool) -> bool:
+    """Activa o desactiva el prompt de un aula."""
+    try:
+        client = _get_client()
+        client.table('ai_prompts').update({'activo': activo}).eq('aula_id', str(aula_id)).execute()
+        return True
+    except Exception as e:
+        print(f"[DB] Error toggling prompt aula {aula_id}: {e}")
+        return False
+
+
+# ──────────────────────────────────────────────
+# AI Config por Conversación
+# ──────────────────────────────────────────────
+def get_ai_conversation_config(phone: str) -> dict | None:
+    """Retorna la configuración de IA para una conversación (enabled/disabled)."""
+    try:
+        client = _get_client()
+        res = (
+            client.table('ai_conversation_config')
+            .select('*')
+            .eq('phone', phone)
+            .limit(1)
+            .execute()
+        )
+        return res.data[0] if res.data else None
+    except Exception as e:
+        print(f"[DB] Error obteniendo ai_conversation_config para {phone}: {e}")
+        return None
+
+
+def set_ai_conversation_enabled(phone: str, enabled: bool) -> bool:
+    """Activa o desactiva la IA para una conversación específica."""
+    try:
+        client = _get_client()
+        client.table('ai_conversation_config').upsert({
+            'phone':      phone,
+            'ai_enabled': enabled,
+            'updated_at': 'now()'
+        }, on_conflict='phone').execute()
+        return True
+    except Exception as e:
+        print(f"[DB] Error seteando ai_conversation_config para {phone}: {e}")
+        return False
+

@@ -211,12 +211,89 @@ def webhook_receive():
 
                     current_app.logger.info(f"[WEBHOOK] Mensaje de {phone_key} ({name}): {body}")
 
+                    # ── Respuesta Automática de IA ──
+                    _trigger_ai_reply(phone_key, conversations_store[phone_key])
+
 
     except Exception as e:
         # Siempre responder 200 para que Meta no reintente el evento
         current_app.logger.error(f"Error procesando webhook: {e}")
 
     return jsonify({"status": "ok"}), 200
+
+
+def _trigger_ai_reply(phone_key: str, conv: dict) -> None:
+    """
+    Genera y envía una respuesta automática de IA si está habilitado.
+    Se ejecuta después de recibir un mensaje entrante vía webhook.
+    """
+    try:
+        from config.settings import app_config
+        # Verificar si el asistente IA y el modo auto-reply están activos
+        if not app_config.ai_assistant_enabled or not app_config.ai_auto_reply:
+            return
+
+        from services.ai_assistant_service import AiAssistantService
+        svc = AiAssistantService()
+
+        # Verificar si la IA está habilitada para esta conversación específica
+        if not svc.esta_habilitada_para_conversacion(phone_key):
+            return
+
+        # Generar respuesta
+        mensajes = conv.get('messages', [])
+        resultado = svc.generar_respuesta(phone_key, mensajes)
+
+        if not resultado.get('exito') or not resultado.get('respuesta'):
+            return
+
+        respuesta_texto = resultado['respuesta']
+
+        # Determinar el número real al que enviar
+        if phone_key.startswith('+') and phone_key[1:].isdigit():
+            send_to = phone_key
+        else:
+            real = conv.get('real_phone') or conv.get('wa_id', '')
+            if not real:
+                return
+            send_to = real if real.startswith('+') else '+' + real
+
+        # Enviar por WhatsApp
+        from services.whatsapp_service import WhatsAppService
+        wa = WhatsAppService()
+        wa_result = wa.enviar_mensaje_texto(send_to, respuesta_texto)
+
+        # Guardar la respuesta de la IA en el store
+        ai_msg = {
+            'id':           str(uuid.uuid4()),
+            'direction':    'out',
+            'body':         respuesta_texto,
+            'ts':           _now_ts(),
+            'ia_generated': True,
+            'wa_sent':      wa_result.get('exito', False),
+            'aula_info':    resultado.get('aula_info', {}),
+            'simulado':     resultado.get('modo_simulacion', False)
+        }
+        conv['messages'].append(ai_msg)
+        conv['last_message'] = respuesta_texto
+        conv['last_ts'] = _now_ts()
+        _save_one(phone_key, conv)
+
+        from flask import current_app
+        current_app.logger.info(
+            f"[IA-REPLY] Respuesta enviada a {phone_key} | "
+            f"Aula: {resultado.get('aula_info', {}).get('aula_nombre', 'N/A')} | "
+            f"Simulado: {resultado.get('modo_simulacion', False)}"
+        )
+
+    except Exception as e:
+        try:
+            from flask import current_app
+            current_app.logger.error(f"[IA-REPLY] Error generando respuesta IA para {phone_key}: {e}")
+        except Exception:
+            print(f"[IA-REPLY] Error: {e}")
+
+
 
 
 # ──────────────────────────────────────────────
@@ -396,3 +473,57 @@ def api_send_message():
         "whatsapp": wa_result
     }), 200
 
+
+# ──────────────────────────────────────────────
+# API — Toggle IA en conversación
+# ──────────────────────────────────────────────
+@conversations_bp.route('/api/ai-toggle', methods=['POST'])
+@login_required
+def api_ai_toggle():
+    """
+    Activa o desactiva la IA para una conversación específica.
+    Recibe JSON: { "phone": "+57XXX", "ai_enabled": true/false }
+    """
+    data       = request.get_json(silent=True) or {}
+    phone      = data.get('phone', '').strip()
+    ai_enabled = data.get('ai_enabled', True)
+
+    if not phone:
+        return jsonify({"error": "Falta el campo phone"}), 400
+
+    try:
+        from db.database import set_ai_conversation_enabled
+        ok = set_ai_conversation_enabled(phone, ai_enabled)
+        estado = "activada" if ai_enabled else "desactivada"
+        if ok:
+            return jsonify({"status": "ok", "ai_enabled": ai_enabled, "mensaje": f"IA {estado} para esta conversación."})
+        return jsonify({"error": "Error al actualizar en BD"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ──────────────────────────────────────────────
+# API — Sugerencia de respuesta IA (sin enviar)
+# ──────────────────────────────────────────────
+@conversations_bp.route('/api/ai-suggestion', methods=['GET'])
+@login_required
+def api_ai_suggestion():
+    """
+    Genera una sugerencia de respuesta de IA para una conversación
+    pero NO la envía por WhatsApp. El asesor la puede revisar y enviar manualmente.
+    """
+    phone = request.args.get('phone', '').strip()
+    if not phone:
+        return jsonify({"error": "Falta el parámetro phone"}), 400
+
+    if phone not in conversations_store:
+        return jsonify({"error": "Conversación no encontrada"}), 404
+
+    try:
+        from services.ai_assistant_service import AiAssistantService
+        svc = AiAssistantService()
+        mensajes  = conversations_store[phone].get('messages', [])
+        resultado = svc.generar_respuesta(phone, mensajes)
+        return jsonify(resultado)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

@@ -38,5 +38,26 @@ ALTER TABLE conversations DISABLE ROW LEVEL SECURITY;
 ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_log DISABLE ROW LEVEL SECURITY;
 
+-- ── Tabla de prompts de IA por aula ──
+CREATE TABLE IF NOT EXISTS ai_prompts (
+    id          BIGSERIAL PRIMARY KEY,
+    aula_id     TEXT NOT NULL UNIQUE,
+    aula_nombre TEXT NOT NULL,
+    prompt      TEXT NOT NULL,
+    activo      BOOLEAN DEFAULT TRUE,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── Tabla de estado IA por conversación ──
+CREATE TABLE IF NOT EXISTS ai_conversation_config (
+    phone       TEXT PRIMARY KEY,
+    ai_enabled  BOOLEAN DEFAULT TRUE,
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE ai_prompts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_conversation_config DISABLE ROW LEVEL SECURITY;
+
 -- ── Confirmación ──
 SELECT 'Tablas creadas correctamente' AS resultado;

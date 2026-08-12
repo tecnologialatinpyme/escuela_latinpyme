@@ -1,0 +1,730 @@
+{% extends "base.html" %}
+
+{% block title %}Asistente IA — Escuela LatinPyme{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── Variables de color premium ── */
+  :root {
+    --ai-primary: #7c3aed;
+    --ai-secondary: #a78bfa;
+    --ai-dark: #1e1b4b;
+    --ai-gradient: linear-gradient(135deg, #7c3aed 0%, #4f46e5 50%, #0ea5e9 100%);
+    --ai-glow: 0 0 30px rgba(124,58,237,0.25);
+  }
+
+  /* ── Layout principal ── */
+  .ai-container { display:grid; grid-template-columns:280px 1fr 320px; gap:0; height:100%; }
+  .ai-panel { display:flex; flex-direction:column; height:100%; overflow:hidden; }
+
+  /* ── Panel izquierdo: lista de aulas ── */
+  .aulas-panel {
+    background:#fff;
+    border-right:1px solid #e2e8f0;
+    display:flex; flex-direction:column;
+  }
+  .aulas-header {
+    padding:20px 16px 12px;
+    background:var(--ai-gradient);
+    color:#fff;
+  }
+  .aulas-header h2 { font-size:15px; font-weight:700; margin:0 0 4px; display:flex;align-items:center;gap:8px; }
+  .aulas-header p { font-size:11px; opacity:.8; margin:0; }
+  .aulas-list { flex:1; overflow-y:auto; padding:8px; }
+  .aula-card {
+    padding:12px 14px; border-radius:10px; cursor:pointer;
+    transition:all .2s; margin-bottom:6px; border:2px solid transparent;
+    background:#f8fafc;
+  }
+  .aula-card:hover { background:#f1f5f9; border-color:#c4b5fd; }
+  .aula-card.active { background:#ede9fe; border-color:var(--ai-primary); }
+  .aula-card .aula-name { font-size:13px; font-weight:600; color:#1e293b; }
+  .aula-card .aula-id { font-size:11px; color:#94a3b8; font-family:monospace; }
+  .aula-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    padding:2px 8px; border-radius:20px; font-size:10px; font-weight:600;
+    margin-top:6px;
+  }
+  .aula-badge.active { background:#dcfce7; color:#16a34a; }
+  .aula-badge.inactive { background:#fef2f2; color:#ef4444; }
+
+  /* ── Panel central: editor ── */
+  .editor-panel {
+    background:#f8fafc;
+    border-right:1px solid #e2e8f0;
+    display:flex; flex-direction:column;
+  }
+  .editor-header {
+    padding:20px 24px 16px;
+    background:#fff;
+    border-bottom:1px solid #e2e8f0;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .editor-title { font-size:16px; font-weight:700; color:#1e293b; }
+  .editor-body { flex:1; overflow-y:auto; padding:20px 24px; }
+
+  .form-group { margin-bottom:20px; }
+  .form-label { display:block; font-size:12px; font-weight:600; color:#475569; margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px; }
+  .form-input {
+    width:100%; padding:10px 14px; border:2px solid #e2e8f0; border-radius:10px;
+    font-size:14px; font-family:'Outfit', sans-serif; color:#1e293b;
+    background:#fff; transition:border-color .2s;
+    outline:none; box-sizing:border-box;
+  }
+  .form-input:focus { border-color:var(--ai-primary); box-shadow:0 0 0 3px rgba(124,58,237,.1); }
+  .form-textarea { min-height:260px; resize:vertical; line-height:1.6; }
+
+  /* Variables chips */
+  .vars-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .var-chip {
+    padding:4px 10px; background:#ede9fe; color:var(--ai-primary);
+    border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
+    font-family:monospace; transition:all .15s;
+  }
+  .var-chip:hover { background:var(--ai-primary); color:#fff; }
+
+  /* Contador de chars */
+  .char-counter { text-align:right; font-size:11px; color:#94a3b8; margin-top:4px; }
+
+  /* ── Panel derecho: simulador ── */
+  .simulator-panel {
+    background:#fff;
+    display:flex; flex-direction:column;
+  }
+  .sim-header {
+    padding:20px 18px 14px;
+    border-bottom:1px solid #e2e8f0;
+  }
+  .sim-title { font-size:14px; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:8px; }
+  .sim-body { flex:1; overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:14px; }
+
+  .sim-result {
+    background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;
+    padding:14px; display:none; flex-direction:column; gap:10px;
+  }
+  .sim-result.visible { display:flex; }
+
+  .sim-aula-info {
+    display:flex; align-items:center; gap:8px;
+    padding:8px 12px; background:#ede9fe; border-radius:8px;
+  }
+  .sim-aula-info .aula-icon { font-size:18px; }
+  .sim-aula-info .aula-text { font-size:12px; }
+  .sim-aula-info .aula-text strong { display:block; color:var(--ai-primary); font-weight:700; }
+  .sim-aula-info .aula-text span { color:#64748b; }
+
+  .sim-response-bubble {
+    background:var(--ai-gradient); color:#fff;
+    padding:14px 16px; border-radius:14px 14px 14px 4px;
+    font-size:13px; line-height:1.6;
+    box-shadow:var(--ai-glow);
+  }
+  .sim-badge {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:3px 10px; border-radius:20px; font-size:10px; font-weight:700;
+    background:#f0fdf4; color:#16a34a;
+  }
+  .sim-badge.sim { background:#fef9c3; color:#ca8a04; }
+
+  /* ── Botones ── */
+  .btn-primary {
+    background:var(--ai-gradient); color:#fff; border:none;
+    padding:10px 20px; border-radius:10px; font-size:14px; font-weight:600;
+    cursor:pointer; transition:all .2s; display:flex; align-items:center; gap:8px;
+    font-family:'Outfit', sans-serif;
+  }
+  .btn-primary:hover { opacity:.9; transform:translateY(-1px); box-shadow:var(--ai-glow); }
+  .btn-danger {
+    background:#fee2e2; color:#ef4444; border:none;
+    padding:8px 14px; border-radius:8px; font-size:12px; font-weight:600;
+    cursor:pointer; transition:all .2s; font-family:'Outfit', sans-serif;
+  }
+  .btn-danger:hover { background:#fecaca; }
+  .btn-ghost {
+    background:transparent; color:#64748b; border:2px solid #e2e8f0;
+    padding:8px 14px; border-radius:8px; font-size:13px; font-weight:600;
+    cursor:pointer; transition:all .2s; font-family:'Outfit', sans-serif;
+  }
+  .btn-ghost:hover { border-color:var(--ai-primary); color:var(--ai-primary); }
+  .btn-sm { padding:6px 12px; font-size:12px; }
+
+  /* ── Toggle switch global ── */
+  .toggle-row { display:flex; align-items:center; gap:12px; }
+  .toggle-label { font-size:13px; font-weight:600; color:#374151; }
+  .toggle-switch { position:relative; display:inline-block; width:46px; height:26px; }
+  .toggle-switch input { opacity:0; width:0; height:0; }
+  .toggle-slider {
+    position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0;
+    background:#cbd5e1; transition:.3s; border-radius:26px;
+  }
+  .toggle-slider:before {
+    position:absolute; content:""; height:20px; width:20px; left:3px; bottom:3px;
+    background:#fff; transition:.3s; border-radius:50%;
+    box-shadow:0 1px 4px rgba(0,0,0,.2);
+  }
+  input:checked + .toggle-slider { background:var(--ai-primary); }
+  input:checked + .toggle-slider:before { transform:translateX(20px); }
+
+  /* ── Config global bar ── */
+  .config-bar {
+    background:var(--ai-dark); color:#fff;
+    padding:12px 24px;
+    display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+    border-bottom:1px solid rgba(255,255,255,.1);
+  }
+  .config-bar-title { font-size:13px; font-weight:700; color:#a78bfa; }
+
+  /* ── Empty state ── */
+  .empty-state { text-align:center; padding:40px 20px; color:#94a3b8; }
+  .empty-state i { font-size:40px; margin-bottom:12px; display:block; }
+  .empty-state p { font-size:13px; }
+
+  /* ── Spinner ── */
+  .spinner { width:20px; height:20px; border:3px solid rgba(124,58,237,.2); border-top-color:var(--ai-primary); border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width:5px; }
+  ::-webkit-scrollbar-track { background:#f1f5f9; }
+  ::-webkit-scrollbar-thumb { background:#c4b5fd; border-radius:10px; }
+
+  /* ── Responsive ── */
+  @media (max-width:1100px) {
+    .ai-container { grid-template-columns:240px 1fr; }
+    .simulator-panel { display:none; }
+  }
+</style>
+{% endblock %}
+
+{% block header_title %}
+  <i class="fa-solid fa-robot text-purple-600 mr-2"></i> Asistente IA
+{% endblock %}
+
+{% block header_badges %}
+  <span id="global-status-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700 hidden">
+    <span class="w-2 h-2 rounded-full bg-purple-500 inline-block animate-pulse mr-1"></span>
+    IA Activa
+  </span>
+{% endblock %}
+
+{% block content %}
+<!-- Barra de configuración global -->
+<div class="config-bar rounded-xl mb-4" id="config-bar">
+  <span class="config-bar-title"><i class="fa-solid fa-sliders mr-2"></i>Configuración Global</span>
+
+  <div class="toggle-row">
+    <span class="toggle-label" style="color:#c4b5fd;">Asistente IA</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="toggle-ai-global" onchange="saveGlobalConfig()">
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+
+  <div class="toggle-row">
+    <span class="toggle-label" style="color:#c4b5fd;">Respuesta Automática</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="toggle-auto-reply" onchange="saveGlobalConfig()">
+      <span class="toggle-slider"></span>
+    </label>
+  </div>
+
+  <div class="flex items-center gap-2 ml-auto">
+    <select id="select-model" onchange="saveGlobalConfig()"
+      style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);padding:6px 10px;border-radius:8px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;">
+      <option value="gpt-4o-mini">GPT-4o Mini</option>
+      <option value="gpt-4o">GPT-4o</option>
+      <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+    </select>
+    <span style="font-size:11px;color:#94a3b8;">Modelo</span>
+  </div>
+</div>
+
+<!-- Grid principal -->
+<div class="ai-container rounded-xl overflow-hidden shadow-lg" style="height:calc(100vh - 220px);">
+
+  <!-- ═══════════════════════════════════════
+       PANEL IZQUIERDO — Lista de Aulas
+  ════════════════════════════════════════ -->
+  <div class="aulas-panel">
+    <div class="aulas-header">
+      <h2><i class="fa-solid fa-chalkboard-user"></i> Aulas Configuradas</h2>
+      <p id="aulas-count">Cargando...</p>
+    </div>
+    <div class="p-3 border-b border-slate-100">
+      <button class="btn-primary w-full justify-center" style="font-size:13px;" onclick="nuevoPrompt()">
+        <i class="fa-solid fa-plus"></i> Nuevo Prompt de Aula
+      </button>
+    </div>
+    <div class="aulas-list" id="aulas-list">
+      <div class="empty-state"><div class="spinner mx-auto"></div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       PANEL CENTRAL — Editor de Prompt
+  ════════════════════════════════════════ -->
+  <div class="editor-panel">
+    <div class="editor-header">
+      <div>
+        <div class="editor-title" id="editor-aula-title">Selecciona o crea un prompt</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:2px;" id="editor-aula-subtitle">
+          Haz clic en una aula o crea una nueva
+        </div>
+      </div>
+      <div class="flex gap-2" id="editor-actions" style="display:none!important;">
+        <button class="btn-danger btn-sm" id="btn-delete" onclick="deletePrompt()">
+          <i class="fa-solid fa-trash"></i> Eliminar
+        </button>
+        <label class="toggle-switch" title="Activar/desactivar este prompt">
+          <input type="checkbox" id="toggle-prompt-active" onchange="togglePromptActive()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="editor-body">
+      <!-- Formulario -->
+      <form id="prompt-form" onsubmit="savePrompt(event)">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="form-group">
+            <label class="form-label">Nombre del Aula / Cliente</label>
+            <input type="text" id="f-aula-nombre" class="form-input" placeholder="ej: EduFundación Coomeva" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ID del Aula (space_id)</label>
+            <input type="text" id="f-aula-id" class="form-input" placeholder="ej: 4" required>
+            <div style="font-size:10px;color:#94a3b8;margin-top:4px;">
+              <i class="fa-solid fa-circle-info"></i> Obtenido de la API de Aulas (campo space_id)
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Prompt del Sistema para la IA</label>
+          <textarea id="f-prompt" class="form-input form-textarea"
+            placeholder="Eres un asistente virtual de {aula}. Responde de manera cordial y profesional las preguntas de {nombre_usuario}..."
+            oninput="updateCharCount()" required></textarea>
+          <div class="char-counter"><span id="char-count">0</span> caracteres</div>
+
+          <!-- Variables disponibles -->
+          <div style="margin-top:10px;">
+            <div style="font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;">
+              <i class="fa-solid fa-code"></i> Variables disponibles (clic para insertar):
+            </div>
+            <div class="vars-row">
+              <span class="var-chip" onclick="insertVar('{nombre_usuario}')">{nombre_usuario}</span>
+              <span class="var-chip" onclick="insertVar('{aula}')">{aula}</span>
+              <span class="var-chip" onclick="insertVar('{fecha}')">{fecha}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prompt por defecto (editable) -->
+        <div class="form-group" style="background:#ede9fe;padding:14px;border-radius:10px;">
+          <label class="form-label" style="color:#7c3aed;">
+            <i class="fa-solid fa-shield-halved"></i> Prompt por Defecto (para usuarios sin aula asignada)
+          </label>
+          <textarea id="f-default-prompt" class="form-input form-textarea"
+            style="min-height:100px;background:rgba(255,255,255,.7);"
+            placeholder="Eres un asistente de LatinPyme..."></textarea>
+          <button type="button" class="btn-ghost btn-sm mt-2" onclick="saveDefaultPrompt()">
+            <i class="fa-solid fa-save"></i> Guardar prompt por defecto
+          </button>
+        </div>
+
+        <div class="flex gap-3 justify-end mt-4">
+          <button type="button" class="btn-ghost" onclick="resetForm()">Cancelar</button>
+          <button type="submit" class="btn-primary" id="btn-save">
+            <i class="fa-solid fa-floppy-disk"></i> Guardar Prompt
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       PANEL DERECHO — Simulador
+  ════════════════════════════════════════ -->
+  <div class="simulator-panel">
+    <div class="sim-header">
+      <div class="sim-title">
+        <i class="fa-solid fa-flask" style="color:var(--ai-primary)"></i>
+        Simulador de Respuesta
+      </div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:4px;">
+        Prueba la IA sin enviar mensajes reales
+      </div>
+    </div>
+
+    <div class="sim-body">
+      <div class="form-group">
+        <label class="form-label">Número de Teléfono</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="sim-telefono" class="form-input" placeholder="573002711932"
+            style="flex:1;" oninput="clearAulaInfo()">
+          <button type="button" class="btn-ghost btn-sm" onclick="lookupAula()" title="Buscar aula">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </button>
+        </div>
+        <!-- Info aula encontrada -->
+        <div id="sim-aula-result" class="sim-aula-info mt-2" style="display:none;">
+          <span class="aula-icon">🎓</span>
+          <div class="aula-text">
+            <strong id="sim-aula-nombre">—</strong>
+            <span id="sim-aula-usuario">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Mensaje del usuario</label>
+        <textarea id="sim-mensaje" class="form-input" style="min-height:90px;"
+          placeholder="¿Cuándo inicia el módulo 3?"></textarea>
+      </div>
+
+      <button class="btn-primary w-full justify-center" onclick="testIA()">
+        <i class="fa-solid fa-paper-plane"></i> Probar Asistente IA
+      </button>
+
+      <!-- Resultado -->
+      <div id="sim-result-box" class="sim-result">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:11px;font-weight:600;color:#475569;">RESPUESTA DE LA IA</span>
+          <div style="display:flex;gap:6px;">
+            <span id="sim-badge-real" class="sim-badge"><i class="fa-solid fa-check"></i> Real</span>
+            <span id="sim-badge-sim" class="sim-badge sim" style="display:none;"><i class="fa-solid fa-flask"></i> Simulado</span>
+          </div>
+        </div>
+
+        <!-- Info de la aula en resultado -->
+        <div id="sim-result-aula" class="sim-aula-info" style="display:none;">
+          <span class="aula-icon">🏫</span>
+          <div class="aula-text">
+            <strong id="sim-result-aula-nombre">—</strong>
+            <span id="sim-result-aula-id">—</span>
+          </div>
+        </div>
+
+        <div class="sim-response-bubble" id="sim-response-text">—</div>
+
+        <!-- Copiar al editor de conversaciones -->
+        <button class="btn-ghost btn-sm" onclick="copiarRespuesta()">
+          <i class="fa-solid fa-copy"></i> Copiar respuesta
+        </button>
+      </div>
+
+      <!-- Spinner mientras procesa -->
+      <div id="sim-spinner" style="display:none;text-align:center;padding:20px;">
+        <div class="spinner mx-auto mb-2"></div>
+        <p style="font-size:12px;color:#94a3b8;">Consultando IA...</p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /ai-container -->
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Estado global ──────────────────────────────────────────
+let prompts        = [];
+let activeAulaId   = null;
+let isNewPrompt    = false;
+
+// ── Inicialización ──────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadConfig();
+  loadPrompts();
+});
+
+// ── Cargar configuración global ──────────────────────────────
+async function loadConfig() {
+  try {
+    const r = await fetch('/ai-assistant/api/config');
+    const d = await r.json();
+    document.getElementById('toggle-ai-global').checked    = d.ai_assistant_enabled === 'true';
+    document.getElementById('toggle-auto-reply').checked   = d.ai_auto_reply === 'true';
+    document.getElementById('select-model').value          = d.openai_model || 'gpt-4o-mini';
+    document.getElementById('f-default-prompt').value      = d.ai_default_prompt || '';
+    updateGlobalBadge(d.ai_assistant_enabled === 'true');
+  } catch(e) { console.error(e); }
+}
+
+function updateGlobalBadge(enabled) {
+  const badge = document.getElementById('global-status-badge');
+  badge.classList.toggle('hidden', !enabled);
+}
+
+async function saveGlobalConfig() {
+  const payload = {
+    ai_assistant_enabled: document.getElementById('toggle-ai-global').checked ? 'true' : 'false',
+    ai_auto_reply:        document.getElementById('toggle-auto-reply').checked ? 'true' : 'false',
+    openai_model:         document.getElementById('select-model').value,
+    ai_default_prompt:    document.getElementById('f-default-prompt').value
+  };
+  try {
+    const r  = await fetch('/ai-assistant/api/config', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    const d = await r.json();
+    updateGlobalBadge(payload.ai_assistant_enabled === 'true');
+    if (!d.exito) throw new Error(d.error);
+  } catch(e) { Swal.fire('Error', e.message, 'error'); }
+}
+
+async function saveDefaultPrompt() {
+  await saveGlobalConfig();
+  Swal.fire({icon:'success',title:'Guardado',text:'Prompt por defecto actualizado.',timer:1500,showConfirmButton:false});
+}
+
+// ── Cargar prompts ──────────────────────────────────────────
+async function loadPrompts() {
+  try {
+    const r = await fetch('/ai-assistant/api/prompts');
+    const d = await r.json();
+    prompts = d.prompts || [];
+    renderAulasList();
+  } catch(e) {
+    document.getElementById('aulas-list').innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation"></i><p>Error cargando prompts</p></div>`;
+  }
+}
+
+function renderAulasList() {
+  const list = document.getElementById('aulas-list');
+  const count = document.getElementById('aulas-count');
+  count.textContent = `${prompts.length} aula${prompts.length !== 1 ? 's' : ''} configurada${prompts.length !== 1 ? 's' : ''}`;
+
+  if (prompts.length === 0) {
+    list.innerHTML = `<div class="empty-state"><i class="fa-solid fa-chalkboard-user"></i><p>No hay aulas configuradas.<br>Crea el primer prompt.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = prompts.map(p => `
+    <div class="aula-card ${p.aula_id == activeAulaId ? 'active' : ''}" onclick="selectAula('${p.aula_id}')">
+      <div class="aula-name">${escapeHtml(p.aula_nombre)}</div>
+      <div class="aula-id">space_id: ${p.aula_id}</div>
+      <span class="aula-badge ${p.activo ? 'active' : 'inactive'}">
+        <i class="fa-solid fa-circle" style="font-size:7px;"></i>
+        ${p.activo ? 'Activo' : 'Inactivo'}
+      </span>
+    </div>
+  `).join('');
+}
+
+// ── Seleccionar aula para editar ────────────────────────────
+function selectAula(aulaId) {
+  activeAulaId = aulaId;
+  isNewPrompt  = false;
+  const p = prompts.find(x => x.aula_id == aulaId);
+  if (!p) return;
+
+  document.getElementById('editor-aula-title').textContent    = p.aula_nombre;
+  document.getElementById('editor-aula-subtitle').textContent = `space_id: ${p.aula_id} • Editando prompt`;
+  document.getElementById('f-aula-id').value                  = p.aula_id;
+  document.getElementById('f-aula-nombre').value              = p.aula_nombre;
+  document.getElementById('f-prompt').value                   = p.prompt;
+  document.getElementById('toggle-prompt-active').checked     = p.activo;
+  document.getElementById('editor-actions').style.display     = 'flex';
+  updateCharCount();
+  renderAulasList();
+}
+
+// ── Nuevo prompt ────────────────────────────────────────────
+function nuevoPrompt() {
+  activeAulaId = null;
+  isNewPrompt  = true;
+  document.getElementById('editor-aula-title').textContent    = 'Nuevo Prompt de Aula';
+  document.getElementById('editor-aula-subtitle').textContent = 'Completa los campos y guarda';
+  document.getElementById('f-aula-id').value                  = '';
+  document.getElementById('f-aula-nombre').value              = '';
+  document.getElementById('f-prompt').value                   = '';
+  document.getElementById('toggle-prompt-active').checked     = true;
+  document.getElementById('editor-actions').style.display     = 'none';
+  updateCharCount();
+  renderAulasList();
+  document.getElementById('f-aula-id').focus();
+}
+
+function resetForm() {
+  if (isNewPrompt) nuevoPrompt();
+  else if (activeAulaId) selectAula(activeAulaId);
+}
+
+// ── Guardar prompt ──────────────────────────────────────────
+async function savePrompt(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Guardando...';
+
+  const payload = {
+    aula_id:     document.getElementById('f-aula-id').value.trim(),
+    aula_nombre: document.getElementById('f-aula-nombre').value.trim(),
+    prompt:      document.getElementById('f-prompt').value.trim(),
+    activo:      document.getElementById('toggle-prompt-active').checked
+  };
+
+  try {
+    const r  = await fetch('/ai-assistant/api/prompts/save', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if (!d.exito) throw new Error(d.error);
+
+    await loadPrompts();
+    activeAulaId = payload.aula_id;
+    isNewPrompt  = false;
+    selectAula(activeAulaId);
+    Swal.fire({icon:'success',title:'¡Guardado!',text:d.mensaje,timer:1800,showConfirmButton:false});
+  } catch(e) {
+    Swal.fire('Error', e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Prompt';
+  }
+}
+
+// ── Eliminar prompt ─────────────────────────────────────────
+async function deletePrompt() {
+  const confirm = await Swal.fire({
+    title:'¿Eliminar este prompt?',
+    text:'Esta acción no se puede deshacer.',
+    icon:'warning',
+    showCancelButton:true,
+    confirmButtonColor:'#ef4444',
+    confirmButtonText:'Sí, eliminar',
+    cancelButtonText:'Cancelar'
+  });
+  if (!confirm.isConfirmed) return;
+
+  try {
+    const r = await fetch(`/ai-assistant/api/prompts/${activeAulaId}`, {method:'DELETE'});
+    const d = await r.json();
+    if (!d.exito) throw new Error(d.error);
+
+    await loadPrompts();
+    nuevoPrompt();
+    Swal.fire({icon:'success',title:'Eliminado',text:'El prompt fue eliminado.',timer:1500,showConfirmButton:false});
+  } catch(e) {
+    Swal.fire('Error', e.message, 'error');
+  }
+}
+
+// ── Toggle activo ───────────────────────────────────────────
+async function togglePromptActive() {
+  if (!activeAulaId) return;
+  const activo = document.getElementById('toggle-prompt-active').checked;
+  try {
+    await fetch(`/ai-assistant/api/prompts/${activeAulaId}/toggle`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({activo})
+    });
+    await loadPrompts();
+  } catch(e) { console.error(e); }
+}
+
+// ── Insertar variable en textarea ───────────────────────────
+function insertVar(variable) {
+  const ta = document.getElementById('f-prompt');
+  const start = ta.selectionStart;
+  const end   = ta.selectionEnd;
+  ta.value = ta.value.slice(0, start) + variable + ta.value.slice(end);
+  ta.selectionStart = ta.selectionEnd = start + variable.length;
+  ta.focus();
+  updateCharCount();
+}
+
+function updateCharCount() {
+  const len = document.getElementById('f-prompt').value.length;
+  document.getElementById('char-count').textContent = len.toLocaleString();
+}
+
+// ── Simulador: buscar aula ──────────────────────────────────
+async function lookupAula() {
+  const tel = document.getElementById('sim-telefono').value.trim();
+  if (!tel) return;
+  const resDiv = document.getElementById('sim-aula-result');
+  resDiv.style.display = 'none';
+
+  try {
+    const r = await fetch(`/ai-assistant/api/aula-lookup?telefono=${encodeURIComponent(tel)}`);
+    const d = await r.json();
+    if (d.encontrado) {
+      document.getElementById('sim-aula-nombre').textContent  = d.aula_nombre;
+      document.getElementById('sim-aula-usuario').textContent = d.nombre_usuario;
+      resDiv.style.display = 'flex';
+    } else {
+      resDiv.style.display = 'none';
+      Swal.fire({icon:'info',title:'No encontrado',text:'No se encontró usuario para ese número.',timer:2000,showConfirmButton:false});
+    }
+  } catch(e) { console.error(e); }
+}
+
+function clearAulaInfo() {
+  document.getElementById('sim-aula-result').style.display = 'none';
+}
+
+// ── Simulador: probar IA ────────────────────────────────────
+async function testIA() {
+  const telefono = document.getElementById('sim-telefono').value.trim();
+  const mensaje  = document.getElementById('sim-mensaje').value.trim();
+
+  if (!telefono || !mensaje) {
+    Swal.fire('Faltan datos', 'Completa el número de teléfono y el mensaje.', 'warning');
+    return;
+  }
+
+  document.getElementById('sim-result-box').classList.remove('visible');
+  document.getElementById('sim-spinner').style.display = 'block';
+
+  try {
+    const r = await fetch('/ai-assistant/api/test', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({telefono, mensaje})
+    });
+    const d = await r.json();
+
+    document.getElementById('sim-spinner').style.display = 'none';
+
+    if (!d.exito) {
+      Swal.fire('Error IA', d.error || 'No se pudo generar respuesta.', 'error');
+      return;
+    }
+
+    // Mostrar resultado
+    document.getElementById('sim-response-text').textContent = d.respuesta;
+    const aula = d.aula_info || {};
+
+    if (aula.encontrado) {
+      document.getElementById('sim-result-aula').style.display = 'flex';
+      document.getElementById('sim-result-aula-nombre').textContent = aula.aula_nombre;
+      document.getElementById('sim-result-aula-id').textContent     = `ID: ${aula.space_id} • ${aula.nombre_usuario}`;
+    } else {
+      document.getElementById('sim-result-aula').style.display = 'none';
+    }
+
+    document.getElementById('sim-badge-real').style.display = d.modo_simulacion ? 'none' : 'inline-flex';
+    document.getElementById('sim-badge-sim').style.display  = d.modo_simulacion ? 'inline-flex' : 'none';
+    document.getElementById('sim-result-box').classList.add('visible');
+
+  } catch(e) {
+    document.getElementById('sim-spinner').style.display = 'none';
+    Swal.fire('Error', e.message, 'error');
+  }
+}
+
+function copiarRespuesta() {
+  const texto = document.getElementById('sim-response-text').textContent;
+  navigator.clipboard.writeText(texto).then(() => {
+    Swal.fire({icon:'success',title:'¡Copiado!',text:'Respuesta copiada al portapapeles.',timer:1500,showConfirmButton:false});
+  });
+}
+
+// ── Util ────────────────────────────────────────────────────
+function escapeHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+{% endblock %}

@@ -16,7 +16,13 @@ DEFAULT_CONFIG = {
     "META_WA_PHONE_NUMBER_ID": "",
     "META_WA_BUSINESS_ACCOUNT_ID": "",
     "META_WA_WEBHOOK_VERIFY_TOKEN": "latinpyme_secret_token",
-    "META_WA_TEMPLATE_NAME": "plantilla_curso_latinpyme"
+    "META_WA_TEMPLATE_NAME": "plantilla_curso_latinpyme",
+    "AULAS_API_URL": "https://capacitacionaportesenlinea.com/api/v1/getUserPhone",
+    "AULAS_API_TOKEN": "topchat-token-access-2024",
+    "AI_ASSISTANT_ENABLED": "true",
+    "AI_AUTO_REPLY": "true",
+    "AI_DEFAULT_PROMPT": "Eres un asistente virtual amable y profesional de la Escuela de Negocios LatinPyme. Responde de manera concisa y cordial las preguntas del estudiante. Si no conoces la respuesta, indícale que un asesor le contactará pronto.",
+    "OPENAI_MODEL": "gpt-4o-mini"
 }
 
 def inicializar_config_json():
@@ -100,6 +106,30 @@ class AppConfig:
     @property
     def meta_wa_template_name(self) -> str:
         return get_config().get("META_WA_TEMPLATE_NAME", "plantilla_curso_latinpyme")
+
+    @property
+    def aulas_api_url(self) -> str:
+        return get_config().get("AULAS_API_URL", "https://capacitacionaportesenlinea.com/api/v1/getUserPhone")
+
+    @property
+    def aulas_api_token(self) -> str:
+        return get_config().get("AULAS_API_TOKEN", "topchat-token-access-2024")
+
+    @property
+    def ai_assistant_enabled(self) -> bool:
+        return get_config().get("AI_ASSISTANT_ENABLED", "true").lower() == "true"
+
+    @property
+    def ai_auto_reply(self) -> bool:
+        return get_config().get("AI_AUTO_REPLY", "true").lower() == "true"
+
+    @property
+    def ai_default_prompt(self) -> str:
+        return get_config().get("AI_DEFAULT_PROMPT", "Eres un asistente virtual de la Escuela de Negocios LatinPyme.")
+
+    @property
+    def openai_model(self) -> str:
+        return get_config().get("OPENAI_MODEL", "gpt-4o-mini")
 
     @property
     def is_simulation_mode(self) -> bool:
