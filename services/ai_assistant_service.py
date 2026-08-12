@@ -217,6 +217,18 @@ class AiAssistantService:
                 'error': 'El último mensaje no es del usuario'
             }
 
+        # Instuir a OpenAI para devolver respuesta y disparador en JSON
+        instruction_json = (
+            "\n\nFORMATO DE RESPUESTA REQUERIDO:\n"
+            "Debes responder EXCLUSIVAMENTE en formato JSON estricto con la siguiente estructura:\n"
+            "{\n"
+            '  "respuesta": "Texto plano fluido sin markdown ni HTML de la respuesta de Isabella para WhatsApp",\n'
+            '  "disparador": "Identificador exacto del disparador activado (ej: asesor_humano_soporte, SoporteOdoo, soluciones_patrocinador, ventas_cursos_abiertos, ventas_agentes_ia, codigo_aportes_en_linea, reclutamiento, encuesta_2026, agente_taller_declaracion, taller_IA, etc.) o \'ninguno\'",\n'
+            '  "pausar_ia": true (solo si el contacto solicita hablar con un asesor o si se activa asesor_humano_soporte) o false\n'
+            "}"
+        )
+        prompt_sistema += instruction_json
+
         # 8. Llamar a OpenAI
         api_key = app_config.openai_key
         if not api_key:
@@ -231,20 +243,30 @@ class AiAssistantService:
                     {'role': 'system', 'content': prompt_sistema},
                     *historial_openai
                 ],
-                temperature=0.7,
-                max_tokens=500,
+                response_format={"type": "json_object"},
+                temperature=0.3,
+                max_tokens=600,
                 timeout=15
             )
-            respuesta_texto = res.choices[0].message.content.strip()
+            raw_content = res.choices[0].message.content.strip()
+            data_json   = json.loads(raw_content)
+
+            respuesta_texto = str(data_json.get("respuesta", raw_content)).strip()
+            disparador      = str(data_json.get("disparador", "ninguno")).strip()
+            pausar_ia       = bool(data_json.get("pausar_ia", False) or disparador == "asesor_humano_soporte")
+
             return {
                 'exito': True,
                 'respuesta': respuesta_texto,
+                'disparador': disparador,
+                'pausar_ia': pausar_ia,
                 'aula_info': aula_info,
                 'modo_simulacion': False
             }
         except Exception as e:
-            print(f"[AiAssistant] Error en OpenAI: {e}")
+            print(f"[AiAssistant] Error en OpenAI completion: {e}")
             return self._respuesta_simulada(aula_info, historial_openai)
+
 
     # ──────────────────────────────────────────────────────
     # 5. Respuesta simulada (fallback sin OpenAI Key)

@@ -248,6 +248,19 @@ def _trigger_ai_reply(phone_key: str, conv: dict) -> None:
             return
 
         respuesta_texto = resultado['respuesta']
+        disparador = resultado.get('disparador', 'ninguno')
+        pausar_ia  = resultado.get('pausar_ia', False)
+
+        if disparador and disparador != 'ninguno':
+            conv['last_trigger'] = disparador
+
+        if pausar_ia or disparador == 'asesor_humano_soporte':
+            conv['human_required'] = True
+            try:
+                from db.database import set_ai_conversation_enabled
+                set_ai_conversation_enabled(phone_key, False)
+            except Exception as e:
+                print(f"[IA-REPLY] Error pausando IA para {phone_key}: {e}")
 
         # Determinar el número real al que enviar
         if phone_key.startswith('+') and phone_key[1:].isdigit():
@@ -270,6 +283,7 @@ def _trigger_ai_reply(phone_key: str, conv: dict) -> None:
             'body':         respuesta_texto,
             'ts':           _now_ts(),
             'ia_generated': True,
+            'disparador':   disparador,
             'wa_sent':      wa_result.get('exito', False),
             'aula_info':    resultado.get('aula_info', {}),
             'simulado':     resultado.get('modo_simulacion', False)
@@ -308,17 +322,25 @@ def api_get_messages():
     """
     phone = request.args.get('phone')
 
-    # Lista de chats para el sidebar
+    from db.database import get_ai_conversation_config
+
     chat_list = []
     for num, data in conversations_store.items():
+        ai_cfg = get_ai_conversation_config(num)
+        ai_enabled = ai_cfg.get('ai_enabled', True) if ai_cfg else True
+
         chat_list.append({
-            "phone": num,
-            "name": data["name"],
-            "avatar": data["avatar"],
-            "last_message": data["last_message"],
-            "last_ts": data["last_ts"],
-            "unread": data["unread"]
+            "phone":          num,
+            "name":           data["name"],
+            "avatar":         data["avatar"],
+            "last_message":   data["last_message"],
+            "last_ts":        data["last_ts"],
+            "unread":         data["unread"],
+            "human_required": data.get("human_required", False),
+            "last_trigger":   data.get("last_trigger", ""),
+            "ai_enabled":     ai_enabled
         })
+
 
     if phone and phone in conversations_store:
         # Marcar como leído al abrir el chat
