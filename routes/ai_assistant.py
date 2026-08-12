@@ -135,6 +135,7 @@ def api_get_config():
     return jsonify({
         'ai_assistant_enabled': cfg.get('AI_ASSISTANT_ENABLED', 'true'),
         'ai_auto_reply':        cfg.get('AI_AUTO_REPLY', 'true'),
+        'ai_master_prompt':     cfg.get('AI_MASTER_PROMPT', ''),
         'ai_default_prompt':    cfg.get('AI_DEFAULT_PROMPT', ''),
         'aulas_api_url':        cfg.get('AULAS_API_URL', ''),
         'aulas_api_token':      cfg.get('AULAS_API_TOKEN', ''),
@@ -152,6 +153,7 @@ def api_save_config():
     config_map = {
         'ai_assistant_enabled': 'AI_ASSISTANT_ENABLED',
         'ai_auto_reply':        'AI_AUTO_REPLY',
+        'ai_master_prompt':     'AI_MASTER_PROMPT',
         'ai_default_prompt':    'AI_DEFAULT_PROMPT',
         'aulas_api_url':        'AULAS_API_URL',
         'aulas_api_token':      'AULAS_API_TOKEN',
@@ -161,6 +163,7 @@ def api_save_config():
     for frontend_key, config_key in config_map.items():
         if frontend_key in data:
             payload[config_key] = data[frontend_key]
+
 
     ok = save_config(payload)
     if ok:

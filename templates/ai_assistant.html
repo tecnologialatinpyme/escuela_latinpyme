@@ -358,9 +358,30 @@
             <div class="vars-row">
               <span class="var-chip" onclick="insertVar('{nombre_usuario}')">{nombre_usuario}</span>
               <span class="var-chip" onclick="insertVar('{aula}')">{aula}</span>
+              <span class="var-chip" onclick="insertVar('{email}')">{email}</span>
               <span class="var-chip" onclick="insertVar('{fecha}')">{fecha}</span>
+              <span class="var-chip" onclick="insertVar('{prompt_maestro}')">{prompt_maestro}</span>
             </div>
           </div>
+        </div>
+
+        <!-- Prompt Maestro Global (General & Soporte) -->
+        <div class="form-group" style="background:#1e1b4b;color:#fff;padding:16px;border-radius:12px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <label class="form-label" style="color:#a78bfa;margin:0;">
+              <i class="fa-solid fa-crown" style="color:#f59e0b;"></i> Prompt Maestro (Reglas Generales y Soporte Técnico)
+            </label>
+            <span style="font-size:10px;background:rgba(255,255,255,.1);color:#c4b5fd;padding:2px 8px;border-radius:12px;">Se aplica a TODAS las aulas</span>
+          </div>
+          <p style="font-size:11px;color:#cbd5e1;margin-bottom:10px;">
+            Este prompt define la identidad global de LatinPyme, tono de voz, instrucciones de soporte y restricciones. Se antepone automáticamente al prompt de cada aula.
+          </p>
+          <textarea id="f-master-prompt" class="form-input form-textarea"
+            style="min-height:120px;background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.2);"
+            placeholder="Eres el Asistente Virtual Oficial de la Escuela de Negocios LatinPyme..."></textarea>
+          <button type="button" class="btn-primary btn-sm mt-2" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);" onclick="saveMasterPrompt()">
+            <i class="fa-solid fa-floppy-disk"></i> Guardar Prompt Maestro
+          </button>
         </div>
 
         <!-- Prompt por defecto -->
@@ -369,12 +390,13 @@
             <i class="fa-solid fa-shield-halved"></i> Prompt por Defecto (usuarios sin aula asignada)
           </label>
           <textarea id="f-default-prompt" class="form-input form-textarea"
-            style="min-height:90px;background:rgba(255,255,255,.7);"
+            style="min-height:80px;background:rgba(255,255,255,.7);"
             placeholder="Eres un asistente de LatinPyme..."></textarea>
           <button type="button" class="btn-ghost btn-sm" style="margin-top:8px;" onclick="saveDefaultPrompt()">
             <i class="fa-solid fa-save"></i> Guardar prompt por defecto
           </button>
         </div>
+
 
       </form>
     </div><!-- /editor-body -->
@@ -507,6 +529,7 @@ async function loadConfig() {
     document.getElementById('toggle-ai-global').checked    = d.ai_assistant_enabled === 'true';
     document.getElementById('toggle-auto-reply').checked   = d.ai_auto_reply === 'true';
     document.getElementById('select-model').value          = d.openai_model || 'gpt-4o-mini';
+    document.getElementById('f-master-prompt').value       = d.ai_master_prompt || '';
     document.getElementById('f-default-prompt').value      = d.ai_default_prompt || '';
     updateGlobalBadge(d.ai_assistant_enabled === 'true');
   } catch(e) { console.error(e); }
@@ -522,6 +545,7 @@ async function saveGlobalConfig() {
     ai_assistant_enabled: document.getElementById('toggle-ai-global').checked ? 'true' : 'false',
     ai_auto_reply:        document.getElementById('toggle-auto-reply').checked ? 'true' : 'false',
     openai_model:         document.getElementById('select-model').value,
+    ai_master_prompt:     document.getElementById('f-master-prompt').value,
     ai_default_prompt:    document.getElementById('f-default-prompt').value
   };
   try {
@@ -535,10 +559,16 @@ async function saveGlobalConfig() {
   } catch(e) { Swal.fire('Error', e.message, 'error'); }
 }
 
+async function saveMasterPrompt() {
+  await saveGlobalConfig();
+  Swal.fire({icon:'success',title:'¡Prompt Maestro Guardado!',text:'Las reglas de soporte y comportamiento global se han actualizado.',timer:1800,showConfirmButton:false});
+}
+
 async function saveDefaultPrompt() {
   await saveGlobalConfig();
   Swal.fire({icon:'success',title:'Guardado',text:'Prompt por defecto actualizado.',timer:1500,showConfirmButton:false});
 }
+
 
 // ── Cargar prompts ──────────────────────────────────────────
 async function loadPrompts() {

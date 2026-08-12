@@ -21,9 +21,11 @@ DEFAULT_CONFIG = {
     "AULAS_API_TOKEN": "topchat-token-access-2024",
     "AI_ASSISTANT_ENABLED": "true",
     "AI_AUTO_REPLY": "true",
-    "AI_DEFAULT_PROMPT": "Eres un asistente virtual amable y profesional de la Escuela de Negocios LatinPyme. Responde de manera concisa y cordial las preguntas del estudiante. Si no conoces la respuesta, indícale que un asesor le contactará pronto.",
+    "AI_MASTER_PROMPT": "Eres el Asistente Virtual Oficial de la Escuela de Negocios LatinPyme.\nTu objetivo es resolver inquietudes de los estudiantes de manera cordial, clara y profesional sobre sus aulas, capacitación y soporte técnico general.\n\nREGLAS GLOBALES Y DE SOPORTE:\n1. Tono: Amable, empático y profesional. Saluda a {nombre_usuario} por su nombre.\n2. Soporte Técnico: Si el estudiante reporta problemas de acceso, plataforma o soporte general, infórmale con amabilidad que un asesor tomará su solicitud o guíalo en los pasos básicos.\n3. Restricciones: No inventes información no contenida en las instrucciones. Si desconoces algún dato específico del aula o curso, indícale que un asesor le contactará en breve.\n4. Formato: Utiliza respuestas en texto plano fluido aptas para WhatsApp.",
+    "AI_DEFAULT_PROMPT": "Eres un asistente virtual amable y profesional de la Escuela de Negocios LatinPyme. Responde de manera concisa y cordial las preguntas del estudiante.",
     "OPENAI_MODEL": "gpt-4o-mini"
 }
+
 
 def inicializar_config_json():
     """Garantiza que el archivo config.json exista con la estructura por defecto."""
@@ -124,8 +126,13 @@ class AppConfig:
         return get_config().get("AI_AUTO_REPLY", "true").lower() == "true"
 
     @property
+    def ai_master_prompt(self) -> str:
+        return get_config().get("AI_MASTER_PROMPT", "Eres el Asistente Virtual Oficial de la Escuela de Negocios LatinPyme.")
+
+    @property
     def ai_default_prompt(self) -> str:
         return get_config().get("AI_DEFAULT_PROMPT", "Eres un asistente virtual de la Escuela de Negocios LatinPyme.")
+
 
     @property
     def openai_model(self) -> str:

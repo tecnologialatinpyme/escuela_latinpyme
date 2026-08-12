@@ -143,22 +143,38 @@ class AiAssistantService:
         # 1. Buscar aula del usuario
         aula_info = self.buscar_aula_por_telefono(telefono)
 
-        # 2. Obtener prompt del aula
-        prompt_sistema = None
+        # 2. Cargar Prompt Maestro (General / Soporte) y Prompt de Aula
+        prompt_maestro = app_config.ai_master_prompt
+        prompt_aula    = None
         if aula_info['encontrado'] and aula_info['space_id']:
-            prompt_sistema = self.obtener_prompt_aula(aula_info['space_id'])
+            prompt_aula = self.obtener_prompt_aula(aula_info['space_id'])
 
-        # 3. Si no hay prompt del aula, usar el prompt por defecto
-        if not prompt_sistema:
-            prompt_sistema = app_config.ai_default_prompt
+        if not prompt_aula:
+            prompt_aula = app_config.ai_default_prompt
+
+        # Si el prompt del aula incluye la etiqueta {prompt_maestro}, la reemplaza allí.
+        # De lo contrario, antepone el Prompt Maestro al del aula.
+        if '{prompt_maestro}' in prompt_aula:
+            prompt_sistema = prompt_aula.replace('{prompt_maestro}', prompt_maestro)
+        elif '{prompt_general}' in prompt_aula:
+            prompt_sistema = prompt_aula.replace('{prompt_general}', prompt_maestro)
+        else:
+            prompt_sistema = (
+                f"{prompt_maestro}\n\n"
+                f"=== INFORMACIÓN ESPECÍFICA DEL AULA / CURSO: {aula_info.get('aula_nombre', 'LatinPyme')} ===\n"
+                f"{prompt_aula}"
+            )
 
         # 4. Personalizar el prompt con datos del usuario
         nombre_usuario = aula_info.get('nombre_usuario', 'Estudiante')
         aula_nombre    = aula_info.get('aula_nombre', 'LatinPyme')
+        email_usuario  = aula_info.get('email', '')
+
         prompt_sistema = (
             prompt_sistema
             .replace('{nombre_usuario}', nombre_usuario)
             .replace('{aula}', aula_nombre)
+            .replace('{email}', email_usuario)
         )
 
         # 5. Construir historial de mensajes
