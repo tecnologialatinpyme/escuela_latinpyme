@@ -14,7 +14,25 @@
   }
 
   /* ── Layout principal ── */
-  .ai-container { display:grid; grid-template-columns:280px 1fr 320px; gap:0; height:100%; }
+  /* Negamos el padding del main para tomar toda la altura disponible */
+  .ai-page-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 64px); /* 64px = header height */
+    margin: -2rem;              /* cancela el p-8 del main */
+    overflow: hidden;
+  }
+  .ai-config-bar-wrapper { flex-shrink: 0; padding: 12px 24px 10px; }
+  .ai-container {
+    display: grid;
+    grid-template-columns: 280px 1fr 320px;
+    gap: 0;
+    flex: 1;
+    min-height: 0;   /* crucial para que flex-children no desborden */
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.08);
+  }
   .ai-panel { display:flex; flex-direction:column; height:100%; overflow:hidden; }
 
   /* ── Panel izquierdo: lista de aulas ── */
@@ -208,39 +226,43 @@
 {% endblock %}
 
 {% block content %}
-<!-- Barra de configuración global -->
-<div class="config-bar rounded-xl mb-4" id="config-bar">
-  <span class="config-bar-title"><i class="fa-solid fa-sliders mr-2"></i>Configuración Global</span>
+<div class="ai-page-wrapper">
 
-  <div class="toggle-row">
-    <span class="toggle-label" style="color:#c4b5fd;">Asistente IA</span>
-    <label class="toggle-switch">
-      <input type="checkbox" id="toggle-ai-global" onchange="saveGlobalConfig()">
-      <span class="toggle-slider"></span>
-    </label>
+  <!-- Barra de configuración global -->
+  <div class="ai-config-bar-wrapper">
+    <div class="config-bar rounded-xl" id="config-bar">
+      <span class="config-bar-title"><i class="fa-solid fa-sliders mr-2"></i>Configuración Global</span>
+
+      <div class="toggle-row">
+        <span class="toggle-label" style="color:#c4b5fd;">Asistente IA</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-ai-global" onchange="saveGlobalConfig()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row">
+        <span class="toggle-label" style="color:#c4b5fd;">Respuesta Automática</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggle-auto-reply" onchange="saveGlobalConfig()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="flex items-center gap-2 ml-auto">
+        <select id="select-model" onchange="saveGlobalConfig()"
+          style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);padding:6px 10px;border-radius:8px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;">
+          <option value="gpt-4o-mini">GPT-4o Mini</option>
+          <option value="gpt-4o">GPT-4o</option>
+          <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+        </select>
+        <span style="font-size:11px;color:#94a3b8;">Modelo</span>
+      </div>
+    </div>
   </div>
 
-  <div class="toggle-row">
-    <span class="toggle-label" style="color:#c4b5fd;">Respuesta Automática</span>
-    <label class="toggle-switch">
-      <input type="checkbox" id="toggle-auto-reply" onchange="saveGlobalConfig()">
-      <span class="toggle-slider"></span>
-    </label>
-  </div>
-
-  <div class="flex items-center gap-2 ml-auto">
-    <select id="select-model" onchange="saveGlobalConfig()"
-      style="background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2);padding:6px 10px;border-radius:8px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;">
-      <option value="gpt-4o-mini">GPT-4o Mini</option>
-      <option value="gpt-4o">GPT-4o</option>
-      <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-    </select>
-    <span style="font-size:11px;color:#94a3b8;">Modelo</span>
-  </div>
-</div>
-
-<!-- Grid principal -->
-<div class="ai-container rounded-xl overflow-hidden shadow-lg" style="height:calc(100vh - 220px);">
+  <!-- Grid principal -->
+  <div class="ai-container">
 
   <!-- ═══════════════════════════════════════
        PANEL IZQUIERDO — Lista de Aulas
@@ -421,8 +443,11 @@
     </div>
   </div>
 
-</div><!-- /ai-container -->
+  </div><!-- /ai-container -->
+
+</div><!-- /ai-page-wrapper -->
 {% endblock %}
+
 
 {% block extra_scripts %}
 <script>
