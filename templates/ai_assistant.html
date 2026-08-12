@@ -4,13 +4,13 @@
 
 {% block extra_head %}
 <style>
-  /* ── Variables de color premium ── */
+  /* ── Variables de color marca LatinPyme ── */
   :root {
-    --ai-primary: #7c3aed;
-    --ai-secondary: #a78bfa;
-    --ai-dark: #1e1b4b;
-    --ai-gradient: linear-gradient(135deg, #7c3aed 0%, #4f46e5 50%, #0ea5e9 100%);
-    --ai-glow: 0 0 30px rgba(124,58,237,0.25);
+    --ai-primary: #E30613;
+    --ai-secondary: #F97F76;
+    --ai-dark: #540207;
+    --ai-gradient: linear-gradient(135deg, #E30613 0%, #c9040f 50%, #8a0209 100%);
+    --ai-glow: 0 0 30px rgba(227,6,19,0.25);
   }
 
   /* ── Layout principal ── */
@@ -58,8 +58,8 @@
     transition:all .2s; margin-bottom:6px; border:2px solid transparent;
     background:#f8fafc;
   }
-  .aula-card:hover { background:#f1f5f9; border-color:#c4b5fd; }
-  .aula-card.active { background:#ede9fe; border-color:var(--ai-primary); }
+  .aula-card:hover { background:#f1f5f9; border-color:#ff9e9e; }
+  .aula-card.active { background:#fff1f1; border-color:var(--ai-primary); }
   .aula-card .aula-name { font-size:13px; font-weight:600; color:#1e293b; }
   .aula-card .aula-id { font-size:11px; color:#94a3b8; font-family:monospace; }
   .aula-badge {
@@ -95,8 +95,8 @@
     display:flex; align-items:center; justify-content:space-between;
     padding:12px 24px;
     background:#fff;
-    border-top:2px solid #ede9fe;
-    box-shadow:0 -4px 16px rgba(124,58,237,.08);
+    border-top:2px solid #ffe0e0;
+    box-shadow:0 -4px 16px rgba(227,6,19,.08);
   }
   .editor-save-bar .save-hint {
     font-size:11px; color:#94a3b8; display:flex; align-items:center; gap:6px;
@@ -110,13 +110,13 @@
     background:#fff; transition:border-color .2s;
     outline:none; box-sizing:border-box;
   }
-  .form-input:focus { border-color:var(--ai-primary); box-shadow:0 0 0 3px rgba(124,58,237,.1); }
+  .form-input:focus { border-color:var(--ai-primary); box-shadow:0 0 0 3px rgba(227,6,19,.1); }
   .form-textarea { min-height:260px; resize:vertical; line-height:1.6; }
 
   /* Variables chips */
   .vars-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
   .var-chip {
-    padding:4px 10px; background:#ede9fe; color:var(--ai-primary);
+    padding:4px 10px; background:#ffe0e0; color:var(--ai-primary);
     border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
     font-family:monospace; transition:all .15s;
   }
@@ -145,7 +145,7 @@
 
   .sim-aula-info {
     display:flex; align-items:center; gap:8px;
-    padding:8px 12px; background:#ede9fe; border-radius:8px;
+    padding:8px 12px; background:#fff1f1; border-radius:8px;
   }
   .sim-aula-info .aula-icon { font-size:18px; }
   .sim-aula-info .aula-text { font-size:12px; }
@@ -211,7 +211,7 @@
     display:flex; align-items:center; gap:20px; flex-wrap:wrap;
     border-bottom:1px solid rgba(255,255,255,.1);
   }
-  .config-bar-title { font-size:13px; font-weight:700; color:#a78bfa; }
+  .config-bar-title { font-size:13px; font-weight:700; color:#F97F76; }
 
   /* ── Empty state ── */
   .empty-state { text-align:center; padding:40px 20px; color:#94a3b8; }
@@ -219,13 +219,13 @@
   .empty-state p { font-size:13px; }
 
   /* ── Spinner ── */
-  .spinner { width:20px; height:20px; border:3px solid rgba(124,58,237,.2); border-top-color:var(--ai-primary); border-radius:50%; animation:spin .7s linear infinite; }
+  .spinner { width:20px; height:20px; border:3px solid rgba(227,6,19,.2); border-top-color:var(--ai-primary); border-radius:50%; animation:spin .7s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
 
   /* ── Scrollbar ── */
   ::-webkit-scrollbar { width:5px; }
   ::-webkit-scrollbar-track { background:#f1f5f9; }
-  ::-webkit-scrollbar-thumb { background:#c4b5fd; border-radius:10px; }
+  ::-webkit-scrollbar-thumb { background:#ff9e9e; border-radius:10px; }
 
   /* ── Responsive ── */
   @media (max-width:1100px) {
@@ -236,15 +236,16 @@
 {% endblock %}
 
 {% block header_title %}
-  <i class="fa-solid fa-robot text-purple-600 mr-2"></i> Asistente IA
+  <i class="fa-solid fa-robot text-brand-600 mr-2"></i> Asistente IA
 {% endblock %}
 
 {% block header_badges %}
-  <span id="global-status-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700 hidden">
-    <span class="w-2 h-2 rounded-full bg-purple-500 inline-block animate-pulse mr-1"></span>
+  <span id="global-status-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-brand-50 text-brand-700 hidden">
+    <span class="w-2 h-2 rounded-full bg-brand-500 inline-block animate-pulse mr-1"></span>
     IA Activa
   </span>
 {% endblock %}
+
 
 {% block content %}
 <div class="ai-page-wrapper">
@@ -255,7 +256,7 @@
       <span class="config-bar-title"><i class="fa-solid fa-sliders mr-2"></i>Configuración Global</span>
 
       <div class="toggle-row">
-        <span class="toggle-label" style="color:#c4b5fd;">Asistente IA</span>
+        <span class="toggle-label" style="color:#ffc5c5;">Asistente IA</span>
         <label class="toggle-switch">
           <input type="checkbox" id="toggle-ai-global" onchange="saveGlobalConfig()">
           <span class="toggle-slider"></span>
@@ -263,12 +264,13 @@
       </div>
 
       <div class="toggle-row">
-        <span class="toggle-label" style="color:#c4b5fd;">Respuesta Automática</span>
+        <span class="toggle-label" style="color:#ffc5c5;">Respuesta Automática</span>
         <label class="toggle-switch">
           <input type="checkbox" id="toggle-auto-reply" onchange="saveGlobalConfig()">
           <span class="toggle-slider"></span>
         </label>
       </div>
+
 
       <div class="flex items-center gap-2 ml-auto">
         <select id="select-model" onchange="saveGlobalConfig()"
@@ -366,12 +368,12 @@
         </div>
 
         <!-- Prompt Maestro Global (General & Soporte) -->
-        <div class="form-group" style="background:#1e1b4b;color:#fff;padding:16px;border-radius:12px;margin-bottom:16px;">
+        <div class="form-group" style="background:#540207;color:#fff;padding:16px;border-radius:12px;margin-bottom:16px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-            <label class="form-label" style="color:#a78bfa;margin:0;">
+            <label class="form-label" style="color:#F97F76;margin:0;">
               <i class="fa-solid fa-crown" style="color:#f59e0b;"></i> Prompt Maestro (Reglas Generales y Soporte Técnico)
             </label>
-            <span style="font-size:10px;background:rgba(255,255,255,.1);color:#c4b5fd;padding:2px 8px;border-radius:12px;">Se aplica a TODAS las aulas</span>
+            <span style="font-size:10px;background:rgba(255,255,255,.1);color:#ffc5c5;padding:2px 8px;border-radius:12px;">Se aplica a TODAS las aulas</span>
           </div>
           <p style="font-size:11px;color:#cbd5e1;margin-bottom:10px;">
             Este prompt define la identidad global de LatinPyme, tono de voz, instrucciones de soporte y restricciones. Se antepone automáticamente al prompt de cada aula.
@@ -379,14 +381,14 @@
           <textarea id="f-master-prompt" class="form-input form-textarea"
             style="min-height:120px;background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.2);"
             placeholder="Eres el Asistente Virtual Oficial de la Escuela de Negocios LatinPyme..."></textarea>
-          <button type="button" class="btn-primary btn-sm mt-2" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);" onclick="saveMasterPrompt()">
+          <button type="button" class="btn-primary btn-sm mt-2" style="background:linear-gradient(135deg,#E30613,#c9040f);" onclick="saveMasterPrompt()">
             <i class="fa-solid fa-floppy-disk"></i> Guardar Prompt Maestro
           </button>
         </div>
 
         <!-- Prompt por defecto -->
-        <div class="form-group" style="background:#ede9fe;padding:14px;border-radius:10px;margin-bottom:24px;">
-          <label class="form-label" style="color:#7c3aed;">
+        <div class="form-group" style="background:#fff1f1;padding:14px;border-radius:10px;margin-bottom:24px;">
+          <label class="form-label" style="color:#E30613;">
             <i class="fa-solid fa-shield-halved"></i> Prompt por Defecto (usuarios sin aula asignada)
           </label>
           <textarea id="f-default-prompt" class="form-input form-textarea"
@@ -396,6 +398,7 @@
             <i class="fa-solid fa-save"></i> Guardar prompt por defecto
           </button>
         </div>
+
 
 
       </form>
@@ -409,9 +412,10 @@
           <i class="fa-solid fa-trash"></i> Eliminar
         </button>
         <span class="save-hint" id="save-hint-text">
-          <i class="fa-solid fa-circle-info" style="color:#c4b5fd;"></i>
+          <i class="fa-solid fa-circle-info" style="color:#ff9e9e;"></i>
           Selecciona o crea un prompt para guardar
         </span>
+
       </div>
       <div class="flex gap-2">
         <button type="button" class="btn-ghost" onclick="resetForm()">Cancelar</button>
@@ -623,7 +627,7 @@ function selectAula(aulaId) {
   document.getElementById('btn-delete').style.display = 'inline-flex';
   // Actualizar hint de la save-bar
   document.getElementById('save-hint-text').innerHTML =
-    `<i class="fa-solid fa-pencil" style="color:#c4b5fd;"></i> Editando: <strong>${escapeHtml(p.aula_nombre)}</strong>`;
+    `<i class="fa-solid fa-pencil" style="color:#ff9e9e;"></i> Editando: <strong>${escapeHtml(p.aula_nombre)}</strong>`;
   updateCharCount();
   renderAulasList();
 }
@@ -642,7 +646,8 @@ function nuevoPrompt() {
   // Ocultar botón eliminar y resetear hint
   document.getElementById('btn-delete').style.display = 'none';
   document.getElementById('save-hint-text').innerHTML =
-    '<i class="fa-solid fa-plus" style="color:#c4b5fd;"></i> Nuevo prompt — completa y guarda';
+    '<i class="fa-solid fa-plus" style="color:#ff9e9e;"></i> Nuevo prompt — completa y guarda';
+
   updateCharCount();
   renderAulasList();
   document.getElementById('f-aula-id').focus();
