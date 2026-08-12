@@ -165,17 +165,34 @@ class AiAssistantService:
                 f"{prompt_aula}"
             )
 
-        # 4. Personalizar el prompt con datos del usuario
+        # 4. Personalizar el prompt con datos del usuario y del aula
         nombre_usuario = aula_info.get('nombre_usuario', 'Estudiante')
         aula_nombre    = aula_info.get('aula_nombre', 'LatinPyme')
+        space_id       = str(aula_info.get('space_id', ''))
+        dominio_aula   = aula_info.get('raw', {}).get('body', 'capacitacionaportesenlinea.com')
         email_usuario  = aula_info.get('email', '')
 
-        prompt_sistema = (
-            prompt_sistema
-            .replace('{nombre_usuario}', nombre_usuario)
-            .replace('{aula}', aula_nombre)
-            .replace('{email}', email_usuario)
-        )
+        replacements = {
+            '{{Aula Virtual ID}}':          space_id,
+            '{space_id}':                   space_id,
+            '{aula_id}':                    space_id,
+
+            '{{Dominio Aula Virtual}}':      dominio_aula,
+            '{dominio_aula}':               dominio_aula,
+
+            '{{Empresa Cliente LatinPyme}}': aula_nombre,
+            '{aula}':                       aula_nombre,
+            '{aula_nombre}':                aula_nombre,
+
+            '{{Nombre Usuario}}':           nombre_usuario,
+            '{nombre_usuario}':             nombre_usuario,
+
+            '{email}':                      email_usuario
+        }
+
+        for key, val in replacements.items():
+            prompt_sistema = prompt_sistema.replace(key, val)
+
 
         # 5. Construir historial de mensajes
         historial_openai = self._construir_historial(mensajes, limite=10)
