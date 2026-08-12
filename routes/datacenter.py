@@ -1,6 +1,7 @@
 import os
 import io
 from flask import Blueprint, render_template, request, jsonify, send_file, current_app
+from flask_login import login_required
 from werkzeug.utils import secure_filename
 import pandas as pd
 from services import ExcelService, OpenAIService
@@ -11,11 +12,13 @@ excel_service = ExcelService()
 openai_service = OpenAIService()
 
 @datacenter_bp.route('/')
+@login_required
 def index():
     """Renderiza la interfaz del Data Center."""
     return render_template('datacenter.html')
 
 @datacenter_bp.route('/analizar', methods=['POST'])
+@login_required
 def analizar():
     """
     Recibe el archivo Excel/CSV y los parámetros del curso.
@@ -82,6 +85,7 @@ def analizar():
     })
 
 @datacenter_bp.route('/exportar', methods=['POST'])
+@login_required
 def exportar():
     """
     Recibe la lista de registros evaluados como JSON y genera un Excel para descargar.

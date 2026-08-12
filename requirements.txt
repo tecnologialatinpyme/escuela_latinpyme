@@ -5,3 +5,6 @@ openpyxl
 openai
 requests
 python-dotenv
+supabase
+flask-login
+bcrypt

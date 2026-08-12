@@ -3,36 +3,28 @@ import os
 import json
 from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, current_app
+from flask_login import login_required
+from db import database as db
 
 conversations_bp = Blueprint('conversations', __name__)
 
 # ──────────────────────────────────────────────
-# Persistencia en disco — archivo JSON
-# Estructura: { phone_number: { "name": str, "messages": [ {...} ], "unread": int } }
+# Persistencia en PostgreSQL (via db.database)
 # ──────────────────────────────────────────────
-_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
-_STORE_FILE = os.path.join(_DATA_DIR, 'conversations.json')
-
 
 def _load_store() -> dict:
-    """Carga el store desde disco. Devuelve dict vacío si no existe."""
-    if not os.path.exists(_STORE_FILE):
-        return {}
-    try:
-        with open(_STORE_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception:
-        return {}
+    """Carga el store desde PostgreSQL."""
+    return db.load_store()
 
 
 def _save_store(store: dict) -> None:
-    """Persiste el store completo en disco."""
-    os.makedirs(_DATA_DIR, exist_ok=True)
-    try:
-        with open(_STORE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(store, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[STORE] Error guardando conversaciones: {e}")
+    """Guarda el store completo en PostgreSQL (usado solo en seed inicial)."""
+    db.save_store(store)
+
+
+def _save_one(phone: str, data: dict) -> None:
+    """Guarda/actualiza una sola conversación en PostgreSQL (más eficiente)."""
+    db.save_conversation(phone, data)
 
 
 # Datos semilla — solo se insertan si el archivo no existe aún
@@ -88,6 +80,7 @@ def _now_ts():
 # Página principal — WhatsApp Web Clone
 # ──────────────────────────────────────────────
 @conversations_bp.route('/')
+@login_required
 def index():
     """Renderiza el clon de WhatsApp Web."""
     return render_template('conversations.html')
@@ -214,7 +207,7 @@ def webhook_receive():
                     conversations_store[phone_key]["unread"] += 1
                     conversations_store[phone_key]["last_message"] = body
                     conversations_store[phone_key]["last_ts"] = _now_ts()
-                    _save_store(conversations_store)
+                    _save_one(phone_key, conversations_store[phone_key])
 
                     current_app.logger.info(f"[WEBHOOK] Mensaje de {phone_key} ({name}): {body}")
 
@@ -230,6 +223,7 @@ def webhook_receive():
 # API — Listar todas las conversaciones (polling UI)
 # ──────────────────────────────────────────────
 @conversations_bp.route('/api/messages', methods=['GET'])
+@login_required
 def api_get_messages():
     """
     Retorna la lista de conversaciones para el panel izquierdo
@@ -265,6 +259,7 @@ def api_get_messages():
 # API — Eliminar conversación
 # ──────────────────────────────────────────────
 @conversations_bp.route('/api/delete', methods=['DELETE'])
+@login_required
 def api_delete_conversation():
     """
     Elimina permanentemente una conversación del store en memoria.
@@ -280,7 +275,7 @@ def api_delete_conversation():
         return jsonify({"error": "Conversación no encontrada"}), 404
 
     del conversations_store[phone]
-    _save_store(conversations_store)
+    db.delete_conversation(phone)
     return jsonify({"status": "deleted", "phone": phone}), 200
 
 
@@ -288,6 +283,7 @@ def api_delete_conversation():
 # API — Vincular número real a conversación por user_id
 # ──────────────────────────────────────────────
 @conversations_bp.route('/api/link-phone', methods=['POST'])
+@login_required
 def api_link_phone():
     """
     Vincula un número de teléfono real a una conversación identificada por user_id.
@@ -306,13 +302,14 @@ def api_link_phone():
     wa_id = real_phone.lstrip('+')
     conversations_store[user_id]['real_phone'] = real_phone
     conversations_store[user_id]['wa_id'] = wa_id
-    _save_store(conversations_store)
+    _save_one(user_id, conversations_store[user_id])
     current_app.logger.info(f"[LINK-PHONE] Vinculado {user_id} → {real_phone}")
     return jsonify({"status": "linked", "user_id": user_id, "real_phone": real_phone}), 200
 
 
 # ──────────────────────────────────────────────
 @conversations_bp.route('/api/send', methods=['POST'])
+@login_required
 def api_send_message():
     """
     Guarda el mensaje del asesor en el store local Y lo envía realmente
@@ -356,7 +353,7 @@ def api_send_message():
             conv["messages"].append(new_msg)
             conv["last_message"] = body
             conv["last_ts"] = _now_ts()
-            _save_store(conversations_store)
+            _save_one(phone, conv)
             return jsonify({
                 "status": "sent",
                 "message": new_msg,
@@ -391,7 +388,7 @@ def api_send_message():
     conv["messages"].append(new_msg)
     conv["last_message"] = body
     conv["last_ts"] = _now_ts()
-    _save_store(conversations_store)
+    _save_one(phone, conv)
 
     return jsonify({
         "status": "sent",

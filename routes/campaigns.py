@@ -1,15 +1,18 @@
 from flask import Blueprint, render_template, request, jsonify
+from flask_login import login_required
 from services import WhatsAppService
 
 campaigns_bp = Blueprint('campaigns', __name__)
 whatsapp_service = WhatsAppService()
 
 @campaigns_bp.route('/')
+@login_required
 def index():
     """Renderiza el panel de campañas."""
     return render_template('campaigns.html')
 
 @campaigns_bp.route('/api/templates', methods=['GET'])
+@login_required
 def get_templates():
     """
     Recupera las plantillas de Meta WhatsApp Cloud (reales o simuladas).
@@ -21,6 +24,7 @@ def get_templates():
         return jsonify({"exito": False, "error": str(e)}), 500
 
 @campaigns_bp.route('/api/enviar_individual', methods=['POST'])
+@login_required
 def enviar_individual():
     """
     Envía una plantilla de WhatsApp a un destinatario individual.
