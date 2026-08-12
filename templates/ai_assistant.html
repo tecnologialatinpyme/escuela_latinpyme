@@ -33,7 +33,11 @@
     border-radius: 12px;
     box-shadow: 0 4px 24px rgba(0,0,0,.08);
   }
-  .ai-panel { display:flex; flex-direction:column; height:100%; overflow:hidden; }
+  .ai-panel { display:flex; flex-direction:column; height:100%; overflow:hidden; min-height:0; }
+  /* Panel izquierdo y derecho también necesitan scroll controlado */
+  .aulas-panel, .simulator-panel {
+    min-height:0; overflow:hidden;
+  }
 
   /* ── Panel izquierdo: lista de aulas ── */
   .aulas-panel {
@@ -71,15 +75,32 @@
     background:#f8fafc;
     border-right:1px solid #e2e8f0;
     display:flex; flex-direction:column;
+    min-height:0;        /* permite que flex-child haga scroll */
+    overflow:hidden;
   }
   .editor-header {
-    padding:20px 24px 16px;
+    padding:16px 24px 14px;
     background:#fff;
     border-bottom:1px solid #e2e8f0;
     display:flex; align-items:center; justify-content:space-between;
+    flex-shrink:0;
   }
   .editor-title { font-size:16px; font-weight:700; color:#1e293b; }
-  .editor-body { flex:1; overflow-y:auto; padding:20px 24px; }
+  /* El body ocupa el espacio restante y hace scroll internamente */
+  .editor-body { flex:1; overflow-y:auto; padding:20px 24px 0; min-height:0; }
+
+  /* Barra de guardado siempre visible al fondo */
+  .editor-save-bar {
+    flex-shrink:0;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 24px;
+    background:#fff;
+    border-top:2px solid #ede9fe;
+    box-shadow:0 -4px 16px rgba(124,58,237,.08);
+  }
+  .editor-save-bar .save-hint {
+    font-size:11px; color:#94a3b8; display:flex; align-items:center; gap:6px;
+  }
 
   .form-group { margin-bottom:20px; }
   .form-label { display:block; font-size:12px; font-weight:600; color:#475569; margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px; }
@@ -286,6 +307,8 @@
        PANEL CENTRAL — Editor de Prompt
   ════════════════════════════════════════ -->
   <div class="editor-panel">
+
+    <!-- Cabecera fija -->
     <div class="editor-header">
       <div>
         <div class="editor-title" id="editor-aula-title">Selecciona o crea un prompt</div>
@@ -293,10 +316,8 @@
           Haz clic en una aula o crea una nueva
         </div>
       </div>
-      <div class="flex gap-2" id="editor-actions" style="display:none!important;">
-        <button class="btn-danger btn-sm" id="btn-delete" onclick="deletePrompt()">
-          <i class="fa-solid fa-trash"></i> Eliminar
-        </button>
+      <!-- Badge de estado activo/inactivo -->
+      <div id="editor-actions" style="display:none;">
         <label class="toggle-switch" title="Activar/desactivar este prompt">
           <input type="checkbox" id="toggle-prompt-active" onchange="togglePromptActive()">
           <span class="toggle-slider"></span>
@@ -304,9 +325,10 @@
       </div>
     </div>
 
+    <!-- Cuerpo scrollable -->
     <div class="editor-body">
-      <!-- Formulario -->
       <form id="prompt-form" onsubmit="savePrompt(event)">
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
           <div class="form-group">
             <label class="form-label">Nombre del Aula / Cliente</label>
@@ -316,7 +338,7 @@
             <label class="form-label">ID del Aula (space_id)</label>
             <input type="text" id="f-aula-id" class="form-input" placeholder="ej: 4" required>
             <div style="font-size:10px;color:#94a3b8;margin-top:4px;">
-              <i class="fa-solid fa-circle-info"></i> Obtenido de la API de Aulas (campo space_id)
+              <i class="fa-solid fa-circle-info"></i> Campo <code>space_id</code> de la API de Aulas
             </div>
           </div>
         </div>
@@ -341,28 +363,43 @@
           </div>
         </div>
 
-        <!-- Prompt por defecto (editable) -->
-        <div class="form-group" style="background:#ede9fe;padding:14px;border-radius:10px;">
+        <!-- Prompt por defecto -->
+        <div class="form-group" style="background:#ede9fe;padding:14px;border-radius:10px;margin-bottom:24px;">
           <label class="form-label" style="color:#7c3aed;">
-            <i class="fa-solid fa-shield-halved"></i> Prompt por Defecto (para usuarios sin aula asignada)
+            <i class="fa-solid fa-shield-halved"></i> Prompt por Defecto (usuarios sin aula asignada)
           </label>
           <textarea id="f-default-prompt" class="form-input form-textarea"
-            style="min-height:100px;background:rgba(255,255,255,.7);"
+            style="min-height:90px;background:rgba(255,255,255,.7);"
             placeholder="Eres un asistente de LatinPyme..."></textarea>
-          <button type="button" class="btn-ghost btn-sm mt-2" onclick="saveDefaultPrompt()">
+          <button type="button" class="btn-ghost btn-sm" style="margin-top:8px;" onclick="saveDefaultPrompt()">
             <i class="fa-solid fa-save"></i> Guardar prompt por defecto
           </button>
         </div>
 
-        <div class="flex gap-3 justify-end mt-4">
-          <button type="button" class="btn-ghost" onclick="resetForm()">Cancelar</button>
-          <button type="submit" class="btn-primary" id="btn-save">
-            <i class="fa-solid fa-floppy-disk"></i> Guardar Prompt
-          </button>
-        </div>
       </form>
-    </div>
-  </div>
+    </div><!-- /editor-body -->
+
+    <!-- ── Barra de guardado SIEMPRE VISIBLE (sticky) ── -->
+    <div class="editor-save-bar">
+      <div class="flex gap-2">
+        <button type="button" class="btn-danger btn-sm" id="btn-delete"
+          onclick="deletePrompt()" style="display:none;">
+          <i class="fa-solid fa-trash"></i> Eliminar
+        </button>
+        <span class="save-hint" id="save-hint-text">
+          <i class="fa-solid fa-circle-info" style="color:#c4b5fd;"></i>
+          Selecciona o crea un prompt para guardar
+        </span>
+      </div>
+      <div class="flex gap-2">
+        <button type="button" class="btn-ghost" onclick="resetForm()">Cancelar</button>
+        <button type="button" class="btn-primary" id="btn-save" onclick="savePrompt(event)">
+          <i class="fa-solid fa-floppy-disk"></i> Guardar Prompt
+        </button>
+      </div>
+    </div><!-- /editor-save-bar -->
+
+  </div><!-- /editor-panel -->
 
   <!-- ═══════════════════════════════════════
        PANEL DERECHO — Simulador
@@ -550,7 +587,13 @@ function selectAula(aulaId) {
   document.getElementById('f-aula-nombre').value              = p.aula_nombre;
   document.getElementById('f-prompt').value                   = p.prompt;
   document.getElementById('toggle-prompt-active').checked     = p.activo;
-  document.getElementById('editor-actions').style.display     = 'flex';
+  // Mostrar toggle activo en header
+  document.getElementById('editor-actions').style.display = 'block';
+  // Mostrar botón eliminar en save-bar
+  document.getElementById('btn-delete').style.display = 'inline-flex';
+  // Actualizar hint de la save-bar
+  document.getElementById('save-hint-text').innerHTML =
+    `<i class="fa-solid fa-pencil" style="color:#c4b5fd;"></i> Editando: <strong>${escapeHtml(p.aula_nombre)}</strong>`;
   updateCharCount();
   renderAulasList();
 }
@@ -566,6 +609,10 @@ function nuevoPrompt() {
   document.getElementById('f-prompt').value                   = '';
   document.getElementById('toggle-prompt-active').checked     = true;
   document.getElementById('editor-actions').style.display     = 'none';
+  // Ocultar botón eliminar y resetear hint
+  document.getElementById('btn-delete').style.display = 'none';
+  document.getElementById('save-hint-text').innerHTML =
+    '<i class="fa-solid fa-plus" style="color:#c4b5fd;"></i> Nuevo prompt — completa y guarda';
   updateCharCount();
   renderAulasList();
   document.getElementById('f-aula-id').focus();
@@ -578,7 +625,7 @@ function resetForm() {
 
 // ── Guardar prompt ──────────────────────────────────────────
 async function savePrompt(e) {
-  e.preventDefault();
+  if (e && e.preventDefault) e.preventDefault();
   const btn = document.getElementById('btn-save');
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Guardando...';
