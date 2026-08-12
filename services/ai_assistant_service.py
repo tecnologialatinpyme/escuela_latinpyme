@@ -124,18 +124,21 @@ class AiAssistantService:
     # ──────────────────────────────────────────────────────
     # 4. Generar respuesta automática
     # ──────────────────────────────────────────────────────
-    def generar_respuesta(self, telefono: str, mensajes: list) -> dict:
+    def generar_respuesta(self, telefono: str, mensajes: list, last_trigger: str = None) -> dict:
         """
         Genera una respuesta de IA para una conversación de WhatsApp.
 
         Parámetros:
         - telefono: Número del contacto (con o sin '+')
         - mensajes: Lista completa de mensajes de la conversación
+        - last_trigger: Disparador activo en la conversación (opcional)
 
         Retorna:
         {
             "exito": bool,
             "respuesta": str,
+            "disparador": str,
+            "pausar_ia": bool,
             "aula_info": dict,
             "modo_simulacion": bool
         }
@@ -143,12 +146,19 @@ class AiAssistantService:
         # 1. Buscar aula del usuario
         aula_info = self.buscar_aula_por_telefono(telefono)
 
-        # 2. Cargar Prompt Maestro (General / Soporte) y Prompt de Aula
+        # 2. Cargar Prompt Maestro (General / Soporte) y Prompt de Aula / Sub-Agente
         prompt_maestro = app_config.ai_master_prompt
         prompt_aula    = None
-        if aula_info['encontrado'] and aula_info['space_id']:
+
+        # A) Buscar por el disparador activo (ej: "taller_IA", "SoporteOdoo", "agente_taller_declaracion")
+        if last_trigger and last_trigger != 'ninguno':
+            prompt_aula = self.obtener_prompt_aula(last_trigger)
+
+        # B) Buscar por el space_id del aula del participante (ej: "4", "115", "2")
+        if not prompt_aula and aula_info['encontrado'] and aula_info['space_id']:
             prompt_aula = self.obtener_prompt_aula(aula_info['space_id'])
 
+        # C) Fallback a prompt por defecto
         if not prompt_aula:
             prompt_aula = app_config.ai_default_prompt
 
@@ -161,9 +171,10 @@ class AiAssistantService:
         else:
             prompt_sistema = (
                 f"{prompt_maestro}\n\n"
-                f"=== INFORMACIÓN ESPECÍFICA DEL AULA / CURSO: {aula_info.get('aula_nombre', 'LatinPyme')} ===\n"
+                f"=== INFORMACIÓN ESPECÍFICA DEL AULA / SUB-AGENTE: {aula_info.get('aula_nombre', 'LatinPyme')} ===\n"
                 f"{prompt_aula}"
             )
+
 
         # 4. Personalizar el prompt con datos del usuario y del aula
         nombre_usuario = aula_info.get('nombre_usuario', 'Estudiante')
