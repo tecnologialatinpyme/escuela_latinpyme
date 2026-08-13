@@ -387,31 +387,15 @@
                         <i class="fa-solid fa-circle-info text-brand-500"></i>
                         <span class="hidden sm:inline">Info & Opciones</span>
                     </button>
-                    <button id="btn-link-phone" onclick="showLinkPhoneModal()" class="text-slate-400 hover:text-indigo-500 transition text-sm flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-indigo-50" title="Vincular número real" style="display:none">
-                        <i class="fa-solid fa-link"></i>
-                        <span class="text-xs font-medium hidden sm:inline">Vincular número</span>
-                    </button>
-                    <button onclick="deleteActiveConversation()" class="text-slate-400 hover:text-rose-500 transition text-sm flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-rose-50" title="Eliminar conversación">
+                    <button onclick="deleteActiveConversation()" class="text-slate-400 hover:text-rose-500 transition text-sm p-1.5 rounded-lg hover:bg-rose-50" title="Eliminar conversación">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
-                    <button onclick="openChatDetailsDrawer()" class="text-slate-400 hover:text-brand-500 transition text-sm p-1 rounded-lg hover:bg-slate-100" title="Más opciones">
+                    <button onclick="openChatDetailsDrawer()" class="text-slate-400 hover:text-brand-500 transition text-sm p-1.5 rounded-lg hover:bg-slate-100" title="Más opciones">
                         <i class="fa-solid fa-ellipsis-vertical"></i>
                     </button>
                 </div>
-
-                <!-- Modal Vincular Número -->
-                <div id="link-phone-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:none;align-items:center;justify-content:center">
-                  <div style="background:#fff;border-radius:16px;padding:24px;width:340px;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
-                    <h3 style="margin:0 0 8px;font-size:15px;font-weight:700;color:#1e293b">📞 Vincular número real</h3>
-                    <p style="margin:0 0 16px;font-size:13px;color:#64748b">Este contacto tiene el número oculto por privacidad. Ingresa su número real para poder responderle.</p>
-                    <input id="link-phone-input" type="tel" placeholder="+573002711932" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box;margin-bottom:16px;outline:none">
-                    <div style="display:flex;gap:10px">
-                      <button onclick="closeLinkPhoneModal()" style="flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#64748b;font-size:13px;cursor:pointer">Cancelar</button>
-                      <button onclick="doLinkPhone()" style="flex:1;padding:10px;border:none;border-radius:10px;background:#6366f1;color:#fff;font-size:13px;font-weight:600;cursor:pointer">Vincular</button>
-                    </div>
-                  </div>
-                </div>
             </div>
+
 
             <!-- DRAWER / MODAL LATERAL DE INFORMACIÓN DE AULAS Y OPCIONES -->
             <div id="chat-details-drawer" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-end transition-opacity">
@@ -506,17 +490,13 @@
                         <!-- SECCIÓN 3: MAS OPCIONES Y ADMINISTRACIÓN -->
                         <div class="space-y-2 pt-2">
                             <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Opciones del Chat</span>
-                            
-                            <button onclick="showLinkPhoneModal(); closeChatDetailsDrawer()" class="w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 transition">
-                                <i class="fa-solid fa-link text-indigo-500"></i>
-                                Vincular número real
-                            </button>
 
                             <button onclick="deleteActiveConversation(); closeChatDetailsDrawer()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 transition">
                                 <i class="fa-solid fa-trash-can"></i>
                                 Eliminar esta conversación
                             </button>
                         </div>
+
 
                     </div>
                 </div>
@@ -682,6 +662,9 @@ async function openChat(phone, name, avatar) {
     activePhone = phone;
     lastMessageCount = 0;
 
+    // Resetear datos del drawer para no dejar datos del chat anterior
+    resetDrawerData(phone, name, avatar);
+
     // Actualizar UI del header del chat
     document.getElementById('active-name').textContent = name;
     document.getElementById('active-phone').textContent = phone;
@@ -694,12 +677,32 @@ async function openChat(phone, name, avatar) {
     activeWin.classList.remove('hidden');
     activeWin.classList.add('flex');
 
-    // Hacer fetch inmediato con el phone
+    // Cargar mensajes y consultar automáticamente la API de Aulas para el número actual
     await pollMessages();
+    fetchAulaInfoRealtime();
 
     // Foco en el input
     document.getElementById('chat-input').focus();
 }
+
+function resetDrawerData(phone, name, avatar) {
+    document.getElementById('drawer-name').textContent = name;
+    document.getElementById('drawer-phone').textContent = phone;
+    document.getElementById('drawer-avatar').textContent = (avatar || name.substring(0, 2)).toUpperCase();
+    document.getElementById('drawer-avatar').style.background = avatarColor(name);
+
+    const statusEl = document.getElementById('drawer-api-status');
+    if (statusEl) {
+        statusEl.innerHTML = `<span class="bg-slate-200 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full"><i class="fa-solid fa-spinner animate-spin"></i> Consultando...</span>`;
+    }
+    document.getElementById('drawer-student-name').textContent = 'Consultando...';
+    document.getElementById('drawer-student-email').textContent = 'Consultando...';
+    document.getElementById('drawer-aula-name').textContent = 'Consultando...';
+    document.getElementById('drawer-space-id').textContent = '...';
+    document.getElementById('drawer-domain').textContent = '...';
+    document.getElementById('drawer-last-trigger').textContent = 'Ninguno';
+}
+
 
 // ════════════════════════════════════════════════
 // RENDER — Mensajes del chat activo
@@ -930,19 +933,29 @@ function closeChatDetailsDrawer() {
 
 async function fetchAulaInfoRealtime() {
     if (!activePhone) return;
+    const targetPhone = activePhone;
     const spinner = document.getElementById('spin-aula-api');
     if (spinner) spinner.classList.add('animate-spin');
 
     try {
-        const res = await fetch(`/conversations/api/user-aula-info?phone=${encodeURIComponent(activePhone)}`);
+        const res = await fetch(`/conversations/api/user-aula-info?phone=${encodeURIComponent(targetPhone)}`);
         const data = await res.json();
         
+        // Evitar sobreescribir UI si el usuario cambió a otro chat mientras se consultaba
+        if (activePhone !== targetPhone) return;
+
         if (data.exito) {
             const info = data.aula_info || {};
             const statusEl = document.getElementById('drawer-api-status');
             
             if (info.encontrado) {
                 statusEl.innerHTML = `<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Encontrado</span>`;
+                
+                // Actualizar nombre real en la cabecera si la API trajo un nombre válido
+                if (info.nombre_usuario && info.nombre_usuario !== 'Estudiante') {
+                    document.getElementById('active-name').textContent = info.nombre_usuario;
+                    document.getElementById('drawer-name').textContent = info.nombre_usuario;
+                }
             } else {
                 statusEl.innerHTML = `<span class="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Sin Registro</span>`;
             }
@@ -956,14 +969,17 @@ async function fetchAulaInfoRealtime() {
 
             // Actualizar switch de IA
             const toggleAi = document.getElementById('drawer-toggle-ai');
-            toggleAi.checked = data.ai_enabled;
+            if (toggleAi) toggleAi.checked = data.ai_enabled;
+
             const statusText = document.getElementById('drawer-ai-status-text');
-            if (data.ai_enabled) {
-                statusText.textContent = 'Respuesta automática activada';
-                statusText.className = 'text-[10px] text-emerald-600 font-semibold';
-            } else {
-                statusText.textContent = 'IA Pausada (Atención Asesor)';
-                statusText.className = 'text-[10px] text-amber-600 font-semibold';
+            if (statusText) {
+                if (data.ai_enabled) {
+                    statusText.textContent = 'Respuesta automática activada';
+                    statusText.className = 'text-[10px] text-emerald-600 font-semibold';
+                } else {
+                    statusText.textContent = 'IA Pausada (Atención Asesor)';
+                    statusText.className = 'text-[10px] text-amber-600 font-semibold';
+                }
             }
         }
     } catch(e) {
@@ -972,6 +988,7 @@ async function fetchAulaInfoRealtime() {
         if (spinner) spinner.classList.remove('animate-spin');
     }
 }
+
 
 async function toggleAiFromDrawer() {
     if (!activePhone) return;
