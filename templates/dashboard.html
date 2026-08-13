@@ -30,12 +30,9 @@
                 </div>
             </div>
             <div class="flex items-baseline gap-2">
-                <span id="kpi-leads-total" class="text-2xl font-bold text-slate-800">1,248</span>
-                <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                    <i class="fa-solid fa-arrow-up"></i> +12%
-                </span>
+                <span id="kpi-leads-total" class="text-2xl font-bold text-slate-800">0</span>
             </div>
-            <p class="text-[10px] text-slate-400 mt-2 font-medium">Historial acumulado en el navegador</p>
+            <p class="text-[10px] text-slate-400 mt-2 font-medium">Historial acumulado en la plataforma</p>
         </div>
 
         <!-- Tarjeta 2: Tasa de Admisión -->
@@ -47,10 +44,7 @@
                 </div>
             </div>
             <div class="flex items-baseline gap-2">
-                <span id="kpi-leads-tasa" class="text-2xl font-bold text-slate-800">42.5%</span>
-                <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                    Perfil calificado
-                </span>
+                <span id="kpi-leads-tasa" class="text-2xl font-bold text-slate-800">0.0%</span>
             </div>
             <p class="text-[10px] text-slate-400 mt-2 font-medium">Aprobación mediante Inteligencia Artificial</p>
         </div>
@@ -64,10 +58,7 @@
                 </div>
             </div>
             <div class="flex items-baseline gap-2">
-                <span id="kpi-wa-enviados" class="text-2xl font-bold text-slate-800">512</span>
-                <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                    98% éxito
-                </span>
+                <span id="kpi-wa-enviados" class="text-2xl font-bold text-slate-800">0</span>
             </div>
             <p class="text-[10px] text-slate-400 mt-2 font-medium">Envíos masivos mediante Meta API</p>
         </div>
@@ -81,10 +72,7 @@
                 </div>
             </div>
             <div class="flex items-baseline gap-2">
-                <span id="kpi-chat-activos" class="text-2xl font-bold text-slate-800">18</span>
-                <span class="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                    <i class="fa-solid fa-fire animate-pulse"></i> Activo
-                </span>
+                <span id="kpi-chat-activos" class="text-2xl font-bold text-slate-800">0</span>
             </div>
             <p class="text-[10px] text-slate-400 mt-2 font-medium">Bandeja de chat en vivo de asesores</p>
         </div>
@@ -147,34 +135,17 @@
                     </tr>
                 </thead>
                 <tbody id="tablaActividad" class="divide-y divide-slate-100">
-                    <tr class="hover:bg-slate-50/50">
-                        <td class="py-3.5 px-6 font-semibold text-slate-800">Andrés Mendoza</td>
-                        <td class="py-3.5 px-6">Director de Logística</td>
-                        <td class="py-3.5 px-6 font-mono">+573144187269</td>
-                        <td class="py-3.5 px-6">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold border border-emerald-100">Leído</span>
-                        </td>
-                    </tr>
-                    <tr class="hover:bg-slate-50/50">
-                        <td class="py-3.5 px-6 font-semibold text-slate-800">Diana Duarte</td>
-                        <td class="py-3.5 px-6">Gerente de Recursos Humanos</td>
-                        <td class="py-3.5 px-6 font-mono">+573105584725</td>
-                        <td class="py-3.5 px-6">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-bold border border-blue-100">Entregado</span>
-                        </td>
-                    </tr>
-                    <tr class="hover:bg-slate-50/50">
-                        <td class="py-3.5 px-6 font-semibold text-slate-800">Carlos Restrepo</td>
-                        <td class="py-3.5 px-6">Analista de Tesorería</td>
-                        <td class="py-3.5 px-6 font-mono">+573215896325</td>
-                        <td class="py-3.5 px-6">
-                            <span class="inline-flex items-center px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-bold border border-amber-100">Enviado</span>
+                    <tr>
+                        <td colspan="4" class="py-8 text-center text-slate-400">
+                            <i class="fa-solid fa-inbox text-2xl mb-2 block"></i>
+                            Sin actividad registrada aún. Carga prospectos o realiza envíos de campañas.
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
     </div>
+
     <!-- Banner cuando no hay datos reales -->
     <div id="no-data-banner" class="hidden bg-amber-50 border border-amber-200 text-amber-800 px-6 py-4 rounded-xl flex items-center justify-between shadow-sm">
         <div class="flex items-center gap-3">
@@ -250,22 +221,23 @@
                 document.getElementById('last-update-bar').classList.remove('hidden');
             }
         } else {
-            // Valores de ejemplo cuando no hay datos reales
-            totalLeads  = 1248;
-            aprobados   = 530;
-            descartados = 718;
+            // Cero cuando no hay datos reales
+            totalLeads  = 0;
+            aprobados   = 0;
+            descartados = 0;
         }
 
         // Prioridad 2: Datos de envíos de campañas
         if (sentLogsRaw) {
             const sentLogs = JSON.parse(sentLogsRaw);
             waEnviados  = sentLogs.length;
-            chatsActivos = Math.max(1, Math.round(sentLogs.length * 0.15));
+            chatsActivos = Math.max(0, Math.round(sentLogs.length * 0.15));
             hayDatosReales = true;
         } else {
-            waEnviados   = hayDatosReales ? aprobados : 512;
-            chatsActivos = hayDatosReales ? Math.max(1, Math.round(aprobados * 0.15)) : 18;
+            waEnviados   = 0;
+            chatsActivos = 0;
         }
+
 
         // Mostrar banner si no hay datos reales
         const banner = document.getElementById('no-data-banner');
