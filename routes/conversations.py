@@ -311,6 +311,48 @@ def _trigger_ai_reply(phone_key: str, conv: dict) -> None:
 
 
 # ──────────────────────────────────────────────
+# API — Consultar información del aula y usuario por teléfono
+# ──────────────────────────────────────────────
+@conversations_bp.route('/api/user-aula-info', methods=['GET'])
+@login_required
+def api_user_aula_info():
+    """
+    Consulta la API externa de Aulas con el teléfono de la conversación
+    y retorna la información completa del estudiante (Nombre, Email, Aula, space_id, dominio)
+    junto con los estados de IA y disparadores del chat.
+    """
+    phone = request.args.get('phone', '').strip()
+    if not phone:
+        return jsonify({"error": "Falta el parámetro phone"}), 400
+
+    from services.ai_assistant_service import AiAssistantService
+    from db.database import get_ai_conversation_config
+
+    svc = AiAssistantService()
+    aula_info = svc.buscar_aula_por_telefono(phone)
+
+    # Si hay una conversación, guardar o actualizar la información del aula
+    conv_data = conversations_store.get(phone, {})
+    if conv_data:
+        conv_data['aula_info'] = aula_info
+        if aula_info.get('nombre_usuario') and aula_info['nombre_usuario'] != 'Estudiante':
+            conv_data['name'] = aula_info['nombre_usuario']
+        _save_one(phone, conv_data)
+
+    ai_cfg = get_ai_conversation_config(phone)
+    ai_enabled = ai_cfg.get('ai_enabled', True) if ai_cfg else True
+
+    return jsonify({
+        "exito": True,
+        "phone": phone,
+        "ai_enabled": ai_enabled,
+        "human_required": conv_data.get("human_required", False),
+        "last_trigger": conv_data.get("last_trigger", ""),
+        "aula_info": aula_info
+    })
+
+
+# ──────────────────────────────────────────────
 # API — Listar todas las conversaciones (polling UI)
 # ──────────────────────────────────────────────
 @conversations_bp.route('/api/messages', methods=['GET'])

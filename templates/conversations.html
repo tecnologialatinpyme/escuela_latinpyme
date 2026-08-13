@@ -382,16 +382,19 @@
                     <div class="chat-window-name" id="active-name">—</div>
                     <div class="chat-window-status" id="active-phone">—</div>
                 </div>
-                <div class="ml-auto flex items-center gap-3">
+                <div class="ml-auto flex items-center gap-2">
+                    <button onclick="openChatDetailsDrawer()" class="bg-white hover:bg-slate-50 text-slate-700 text-xs px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm font-semibold flex items-center gap-1.5 transition" title="Ver Info del Aula y Opciones">
+                        <i class="fa-solid fa-circle-info text-brand-500"></i>
+                        <span class="hidden sm:inline">Info & Opciones</span>
+                    </button>
                     <button id="btn-link-phone" onclick="showLinkPhoneModal()" class="text-slate-400 hover:text-indigo-500 transition text-sm flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-indigo-50" title="Vincular número real" style="display:none">
                         <i class="fa-solid fa-link"></i>
                         <span class="text-xs font-medium hidden sm:inline">Vincular número</span>
                     </button>
                     <button onclick="deleteActiveConversation()" class="text-slate-400 hover:text-rose-500 transition text-sm flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-rose-50" title="Eliminar conversación">
                         <i class="fa-solid fa-trash-can"></i>
-                        <span class="text-xs font-medium hidden sm:inline">Eliminar</span>
                     </button>
-                    <button class="text-slate-400 hover:text-brand-500 transition text-sm" title="Más opciones">
+                    <button onclick="openChatDetailsDrawer()" class="text-slate-400 hover:text-brand-500 transition text-sm p-1 rounded-lg hover:bg-slate-100" title="Más opciones">
                         <i class="fa-solid fa-ellipsis-vertical"></i>
                     </button>
                 </div>
@@ -409,6 +412,116 @@
                   </div>
                 </div>
             </div>
+
+            <!-- DRAWER / MODAL LATERAL DE INFORMACIÓN DE AULAS Y OPCIONES -->
+            <div id="chat-details-drawer" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-end transition-opacity">
+                <div class="w-full max-w-sm bg-white h-full shadow-2xl flex flex-col overflow-hidden animate-slide-left font-['Outfit']">
+                    <!-- Cabecera del Drawer -->
+                    <div class="p-5 bg-slate-900 text-white flex items-center justify-between flex-shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div id="drawer-avatar" class="w-10 h-10 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-sm shadow-md">
+                                ?
+                            </div>
+                            <div>
+                                <h3 id="drawer-name" class="font-bold text-sm text-white leading-tight">Cargando...</h3>
+                                <p id="drawer-phone" class="text-xs text-slate-400 font-mono">—</p>
+                            </div>
+                        </div>
+                        <button onclick="closeChatDetailsDrawer()" class="text-slate-400 hover:text-white transition p-1.5 rounded-lg hover:bg-slate-800">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
+
+                    <!-- Cuerpo Scrollable del Drawer -->
+                    <div class="flex-1 overflow-y-auto p-5 space-y-6">
+                        
+                        <!-- SECCIÓN 1: DATOS DE LA API DE AULAS -->
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                    <i class="fa-solid fa-graduation-cap text-brand-500"></i> API de Aulas
+                                </span>
+                                <div id="drawer-api-status">
+                                    <span class="bg-slate-200 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">Consultando...</span>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2 text-xs divide-y divide-slate-200/60 pt-1">
+                                <div class="flex justify-between py-1.5">
+                                    <span class="text-slate-500 font-medium">Estudiante:</span>
+                                    <span id="drawer-student-name" class="font-semibold text-slate-800 text-right">—</span>
+                                </div>
+                                <div class="flex justify-between py-1.5">
+                                    <span class="text-slate-500 font-medium">Correo:</span>
+                                    <span id="drawer-student-email" class="font-semibold text-indigo-600 text-right break-all max-w-[200px]">—</span>
+                                </div>
+                                <div class="flex justify-between py-1.5">
+                                    <span class="text-slate-500 font-medium">Aula / Cliente:</span>
+                                    <span id="drawer-aula-name" class="font-semibold text-slate-800 text-right">—</span>
+                                </div>
+                                <div class="flex justify-between py-1.5">
+                                    <span class="text-slate-500 font-medium">ID Aula (space_id):</span>
+                                    <span id="drawer-space-id" class="font-mono font-bold text-slate-700 bg-slate-200 px-1.5 py-0.5 rounded">—</span>
+                                </div>
+                                <div class="flex justify-between py-1.5">
+                                    <span class="text-slate-500 font-medium">Dominio:</span>
+                                    <span id="drawer-domain" class="font-mono text-slate-600 text-right">—</span>
+                                </div>
+                            </div>
+
+                            <button onclick="fetchAulaInfoRealtime()" class="w-full mt-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold py-2 rounded-xl flex items-center justify-center gap-2 transition">
+                                <i class="fa-solid fa-arrows-rotate" id="spin-aula-api"></i>
+                                Consultar API de Aulas ahora
+                            </button>
+                        </div>
+
+                        <!-- SECCIÓN 2: CONTROL DE ASISTENTE IA -->
+                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+                            <span class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-robot text-indigo-600"></i> Asistente IA (Isabella)
+                            </span>
+
+                            <div class="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-800">IA en este chat</p>
+                                    <p id="drawer-ai-status-text" class="text-[10px] text-emerald-600 font-semibold">Respuesta automática activada</p>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="drawer-toggle-ai" onchange="toggleAiFromDrawer()">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="flex items-center justify-between text-xs py-1">
+                                <span class="text-slate-500 font-medium">Último Disparador:</span>
+                                <span id="drawer-last-trigger" class="font-mono font-bold text-xs text-brand-600 bg-brand-50 border border-brand-100 px-2 py-0.5 rounded-lg">Ninguno</span>
+                            </div>
+
+                            <button onclick="generateAiSuggestionFromDrawer()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 transition shadow-sm">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                Generar sugerencia IA borrador
+                            </button>
+                        </div>
+
+                        <!-- SECCIÓN 3: MAS OPCIONES Y ADMINISTRACIÓN -->
+                        <div class="space-y-2 pt-2">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Opciones del Chat</span>
+                            
+                            <button onclick="showLinkPhoneModal(); closeChatDetailsDrawer()" class="w-full bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 transition">
+                                <i class="fa-solid fa-link text-indigo-500"></i>
+                                Vincular número real
+                            </button>
+
+                            <button onclick="deleteActiveConversation(); closeChatDetailsDrawer()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 transition">
+                                <i class="fa-solid fa-trash-can"></i>
+                                Eliminar esta conversación
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
 
             <div class="chat-messages" id="chat-messages">
                 {# Poblado dinámicamente #}
@@ -791,5 +904,122 @@ function deleteActiveConversation() {
     const name = document.getElementById('active-name').textContent;
     confirmDelete(activePhone, name);
 }
+
+// ════════════════════════════════════════════════
+// DRAWER — INFO DEL AULA Y OPCIONES DEL CHAT
+// ════════════════════════════════════════════════
+function openChatDetailsDrawer() {
+    if (!activePhone) return;
+    const drawer = document.getElementById('chat-details-drawer');
+    drawer.classList.remove('hidden');
+    
+    // Set current active conversation info
+    const name = document.getElementById('active-name').textContent;
+    document.getElementById('drawer-name').textContent = name;
+    document.getElementById('drawer-phone').textContent = activePhone;
+    document.getElementById('drawer-avatar').textContent = name.substring(0, 2).toUpperCase();
+    document.getElementById('drawer-avatar').style.background = avatarColor(name);
+
+    // Fetch real-time Aula API info
+    fetchAulaInfoRealtime();
+}
+
+function closeChatDetailsDrawer() {
+    document.getElementById('chat-details-drawer').classList.add('hidden');
+}
+
+async function fetchAulaInfoRealtime() {
+    if (!activePhone) return;
+    const spinner = document.getElementById('spin-aula-api');
+    if (spinner) spinner.classList.add('animate-spin');
+
+    try {
+        const res = await fetch(`/conversations/api/user-aula-info?phone=${encodeURIComponent(activePhone)}`);
+        const data = await res.json();
+        
+        if (data.exito) {
+            const info = data.aula_info || {};
+            const statusEl = document.getElementById('drawer-api-status');
+            
+            if (info.encontrado) {
+                statusEl.innerHTML = `<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Encontrado</span>`;
+            } else {
+                statusEl.innerHTML = `<span class="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> Sin Registro</span>`;
+            }
+
+            document.getElementById('drawer-student-name').textContent = info.nombre_usuario || 'Estudiante';
+            document.getElementById('drawer-student-email').textContent = info.email || 'No registrado';
+            document.getElementById('drawer-aula-name').textContent = info.aula_nombre || 'Aula General';
+            document.getElementById('drawer-space-id').textContent = info.space_id || 'Sin ID';
+            document.getElementById('drawer-domain').textContent = info.body || 'Sin Dominio';
+            document.getElementById('drawer-last-trigger').textContent = data.last_trigger || 'Ninguno';
+
+            // Actualizar switch de IA
+            const toggleAi = document.getElementById('drawer-toggle-ai');
+            toggleAi.checked = data.ai_enabled;
+            const statusText = document.getElementById('drawer-ai-status-text');
+            if (data.ai_enabled) {
+                statusText.textContent = 'Respuesta automática activada';
+                statusText.className = 'text-[10px] text-emerald-600 font-semibold';
+            } else {
+                statusText.textContent = 'IA Pausada (Atención Asesor)';
+                statusText.className = 'text-[10px] text-amber-600 font-semibold';
+            }
+        }
+    } catch(e) {
+        console.error("Error fetching aula info:", e);
+    } finally {
+        if (spinner) spinner.classList.remove('animate-spin');
+    }
+}
+
+async function toggleAiFromDrawer() {
+    if (!activePhone) return;
+    const toggleAi = document.getElementById('drawer-toggle-ai');
+    const enabled = toggleAi.checked;
+
+    try {
+        const res = await fetch('/conversations/api/ai-toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: activePhone, ai_enabled: enabled })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(data.mensaje || 'IA actualizada');
+            fetchAulaInfoRealtime();
+        } else {
+            showToast('❌ ' + (data.error || 'Error al cambiar IA'), 'error');
+            toggleAi.checked = !enabled;
+        }
+    } catch(e) {
+        showToast('❌ Error de conexión', 'error');
+        toggleAi.checked = !enabled;
+    }
+}
+
+async function generateAiSuggestionFromDrawer() {
+    if (!activePhone) return;
+    showToast('✨ Generando sugerencia IA...', 'info');
+
+    try {
+        const res = await fetch(`/conversations/api/ai-suggestion?phone=${encodeURIComponent(activePhone)}`);
+        const data = await res.json();
+        if (res.ok && data.respuesta) {
+            const input = document.getElementById('chat-input');
+            input.value = data.respuesta;
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+            input.focus();
+            closeChatDetailsDrawer();
+            showToast('✅ Sugerencia insertada en la caja de texto', 'success');
+        } else {
+            showToast('⚠️ No se pudo generar la sugerencia: ' + (data.error || 'Intenta de nuevo'), 'warning');
+        }
+    } catch(e) {
+        showToast('❌ Error de conexión', 'error');
+    }
+}
 </script>
 {% endblock %}
+
