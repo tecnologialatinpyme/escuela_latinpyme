@@ -9,11 +9,16 @@
     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
     Conexión Webhook Activa
 </span>
+<button onclick="limpiarDatosDashboard()" title="Limpiar datos acumulados del navegador" class="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs px-3 py-1 rounded-full font-semibold border border-rose-100 flex items-center gap-1.5 transition-all duration-200">
+    <i class="fa-solid fa-trash-can"></i>
+    Limpiar Datos
+</button>
 <button onclick="refrescarDashboard()" title="Actualizar datos" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs px-3 py-1 rounded-full font-semibold border border-indigo-100 flex items-center gap-1.5 transition-all duration-200">
     <i class="fa-solid fa-rotate-right" id="refresh-icon"></i>
     Actualizar
 </button>
 {% endblock %}
+
 
 {% block content %}
 <div class="space-y-6">
@@ -195,16 +200,38 @@
         inicializarDashboard();
     }
 
-    function inicializarDashboard() {
+    function limpiarDatosDashboard() {
+        if (!confirm("¿Deseas restablecer las estadísticas acumuladas en el navegador?")) return;
+        localStorage.removeItem('latinpyme_analysis_stats');
+        localStorage.removeItem('latinpyme_sent_logs');
+        localStorage.removeItem('latinpyme_all_records');
+        localStorage.removeItem('latinpyme_campaign_contacts');
+        localStorage.removeItem('latinpyme_campaign_course_name');
+        refrescarDashboard();
+    }
+
+    async function inicializarDashboard() {
         // --- Leer datos reales del localStorage ---
         const statsRaw = localStorage.getItem('latinpyme_analysis_stats');
         const sentLogsRaw = localStorage.getItem('latinpyme_sent_logs');
         const allRecordsRaw = localStorage.getItem('latinpyme_all_records');
 
-        let totalLeads, aprobados, descartados, waEnviados, chatsActivos;
+        let totalLeads = 0, aprobados = 0, descartados = 0, waEnviados = 0, chatsActivos = 0;
         let hayDatosReales = false;
 
-        // Prioridad 1: Usar las estadísticas del análisis (más precisas)
+        // Consultar métricas en tiempo real desde el servidor
+        try {
+            const r = await fetch('/dashboard/api/stats');
+            const d = await r.json();
+            if (d.exito) {
+                chatsActivos = d.active_chats || 0;
+                if (d.total_outbound > 0) {
+                    waEnviados = d.total_outbound;
+                    hayDatosReales = true;
+                }
+            }
+        } catch(e) { console.error(e); }
+
         if (statsRaw) {
             const stats = JSON.parse(statsRaw);
             totalLeads  = stats.totalLeads  || 0;
@@ -212,7 +239,6 @@
             descartados = stats.descartados || 0;
             hayDatosReales = true;
 
-            // Mostrar fecha del último análisis
             if (stats.fechaAnalisis) {
                 const fecha = new Date(stats.fechaAnalisis);
                 const opciones = { dateStyle: 'medium', timeStyle: 'short' };
@@ -220,28 +246,17 @@
                     `Datos del último análisis: ${fecha.toLocaleString('es-CO', opciones)}`;
                 document.getElementById('last-update-bar').classList.remove('hidden');
             }
-        } else {
-            // Cero cuando no hay datos reales
-            totalLeads  = 0;
-            aprobados   = 0;
-            descartados = 0;
         }
 
-        // Prioridad 2: Datos de envíos de campañas
         if (sentLogsRaw) {
             const sentLogs = JSON.parse(sentLogsRaw);
-            waEnviados  = sentLogs.length;
-            chatsActivos = Math.max(0, Math.round(sentLogs.length * 0.15));
+            waEnviados  = Math.max(waEnviados, sentLogs.length);
             hayDatosReales = true;
-        } else {
-            waEnviados   = 0;
-            chatsActivos = 0;
         }
-
 
         // Mostrar banner si no hay datos reales
         const banner = document.getElementById('no-data-banner');
-        if (!hayDatosReales) {
+        if (!hayDatosReales && chatsActivos === 0) {
             banner.classList.remove('hidden');
         } else {
             banner.classList.add('hidden');
@@ -254,6 +269,7 @@
         document.getElementById('kpi-leads-tasa').innerText  = `${tasaAprobacion}%`;
         document.getElementById('kpi-wa-enviados').innerText = waEnviados.toLocaleString('es-CO');
         document.getElementById('kpi-chat-activos').innerText = chatsActivos;
+
 
         // --- Actualizar tabla de actividad reciente ---
         if (allRecordsRaw) {
