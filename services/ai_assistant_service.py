@@ -64,6 +64,7 @@ class AiAssistantService:
             space_id  = str(data.get('space_id', ''))
             client    = data.get('client', 'Aula General')
             email     = data.get('email', '')
+            body_domain = data.get('body', '')
 
             return {
                 'encontrado':    True,
@@ -71,6 +72,8 @@ class AiAssistantService:
                 'aula_nombre':   client,
                 'nombre_usuario': nombre_completo,
                 'email':         email,
+                'body':          body_domain,
+                'dominio_aula':  body_domain,
                 'raw':           data
             }
         else:
@@ -82,8 +85,11 @@ class AiAssistantService:
             'space_id':      None,
             'aula_nombre':   'Aula General',
             'nombre_usuario': 'Estudiante',
-            'email':         ''
+            'email':         '',
+            'body':          '',
+            'dominio_aula':  ''
         }
+
 
     # ──────────────────────────────────────────────────────
     # 2. Obtener prompt del aula desde BD

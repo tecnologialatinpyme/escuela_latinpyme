@@ -964,8 +964,9 @@ async function fetchAulaInfoRealtime() {
             document.getElementById('drawer-student-email').textContent = info.email || 'No registrado';
             document.getElementById('drawer-aula-name').textContent = info.aula_nombre || 'Aula General';
             document.getElementById('drawer-space-id').textContent = info.space_id || 'Sin ID';
-            document.getElementById('drawer-domain').textContent = info.body || 'Sin Dominio';
+            document.getElementById('drawer-domain').textContent = info.body || info.dominio_aula || 'Sin Dominio';
             document.getElementById('drawer-last-trigger').textContent = data.last_trigger || 'Ninguno';
+
 
             // Actualizar switch de IA
             const toggleAi = document.getElementById('drawer-toggle-ai');
