@@ -208,18 +208,81 @@ def get_config() -> dict:
         env_val = os.getenv(key)
         if env_val:
             config[key] = env_val
-            
+
+    # Aliases flexibles para OpenAI API Key en Render / Vercel / Heroku
+    openai_env = (
+        os.getenv("OPENAI_API_KEY") or
+        os.getenv("OPENAI_KEY") or
+        os.getenv("OPENIA_API_KEY") or
+        os.getenv("OPENAI_SECRET_KEY") or
+        os.getenv("OPENAI_API_SECRET")
+    )
+    if openai_env and openai_env.strip():
+        config["OPENAI_API_KEY"] = openai_env.strip()
+
     return config
+
+
+def mask_secret(value: str) -> str:
+    """Enmascara una cadena dejando solo los últimos 4 caracteres visibles o un indicador."""
+    if not value or not isinstance(value, str):
+        return ""
+    val_clean = value.strip()
+    if len(val_clean) <= 4:
+        return "••••••••"
+    return f"••••••••{val_clean[-4:]}"
+
+
+def get_sanitized_config() -> dict:
+    """
+    Retorna la configuración lista para la interfaz visual sin exponer tokens o claves en texto plano.
+    Incluye indicadores del estado de cada servicio (Activo / No configurado).
+    """
+    raw = get_config()
+    sanitized = raw.copy()
+    
+    sensitive_keys = [
+        "OPENAI_API_KEY",
+        "META_WA_TOKEN",
+        "META_WA_PHONE_NUMBER_ID",
+        "META_WA_BUSINESS_ACCOUNT_ID",
+        "AULAS_API_TOKEN"
+    ]
+    
+    for key in sensitive_keys:
+        val = raw.get(key, "").strip()
+        is_configured = bool(val and val != "tu_token_aqui" and val != "tu_phone_number_id" and val != "tu_business_account_id")
+        sanitized[f"{key}_configured"] = is_configured
+        sanitized[f"{key}_status"] = "Activo / Configurado" if is_configured else "No configurado"
+        sanitized[key] = mask_secret(val) if is_configured else ""
+        
+    return sanitized
+
 
 def save_config(new_data: dict) -> bool:
     """
     Guarda los datos de configuración en el archivo config.json.
+    Preserva las llaves sensibles existentes si vienen enmascaradas (ej: ••••••••).
     """
     current_config = get_config()
-    # Solo actualizar las llaves que corresponden a nuestra configuración estándar
+    
+    sensitive_keys = [
+        "OPENAI_API_KEY",
+        "META_WA_TOKEN",
+        "META_WA_PHONE_NUMBER_ID",
+        "META_WA_BUSINESS_ACCOUNT_ID",
+        "AULAS_API_TOKEN"
+    ]
+    
     for key in DEFAULT_CONFIG.keys():
         if key in new_data:
-            current_config[key] = new_data[key]
+            val = str(new_data[key]).strip() if new_data[key] is not None else ""
+            # Si es una clave sensible y viene enmascarada o vacía pero ya existe una configurada, conservarla
+            if key in sensitive_keys and (val.startswith("••••") or not val):
+                existing = current_config.get(key, "").strip()
+                if existing and existing != "tu_token_aqui":
+                    continue
+            current_config[key] = val
             
     try:
         with open(CONFIG_FILE_PATH, "w", encoding="utf-8") as f:
@@ -229,49 +292,60 @@ def save_config(new_data: dict) -> bool:
         print(f"Error al guardar config.json: {e}")
         return False
 
+
 class AppConfig:
     """
     Clase contenedora estática para acceder rápidamente a las credenciales en la app.
     """
     @property
     def openai_key(self) -> str:
-        return get_config().get("OPENAI_API_KEY", "")
+        # Buscar en variables de entorno con múltiples alias o en get_config()
+        env_key = (
+            os.getenv("OPENAI_API_KEY") or
+            os.getenv("OPENAI_KEY") or
+            os.getenv("OPENIA_API_KEY") or
+            os.getenv("OPENAI_SECRET_KEY") or
+            os.getenv("OPENAI_API_SECRET")
+        )
+        if env_key and env_key.strip():
+            return env_key.strip()
+        return get_config().get("OPENAI_API_KEY", "").strip()
 
     @property
     def meta_wa_token(self) -> str:
-        return get_config().get("META_WA_TOKEN", "")
+        return get_config().get("META_WA_TOKEN", "").strip()
 
     @property
     def meta_wa_phone_id(self) -> str:
-        return get_config().get("META_WA_PHONE_NUMBER_ID", "")
+        return get_config().get("META_WA_PHONE_NUMBER_ID", "").strip()
 
     @property
     def meta_wa_business_id(self) -> str:
-        return get_config().get("META_WA_BUSINESS_ACCOUNT_ID", "")
+        return get_config().get("META_WA_BUSINESS_ACCOUNT_ID", "").strip()
 
     @property
     def meta_wa_webhook_verify_token(self) -> str:
-        return get_config().get("META_WA_WEBHOOK_VERIFY_TOKEN", "latinpyme_secret_token")
+        return get_config().get("META_WA_WEBHOOK_VERIFY_TOKEN", "latinpyme_secret_token").strip()
 
     @property
     def meta_wa_template_name(self) -> str:
-        return get_config().get("META_WA_TEMPLATE_NAME", "plantilla_curso_latinpyme")
+        return get_config().get("META_WA_TEMPLATE_NAME", "plantilla_curso_latinpyme").strip()
 
     @property
     def aulas_api_url(self) -> str:
-        return get_config().get("AULAS_API_URL", "https://capacitacionaportesenlinea.com/api/v1/getUserPhone")
+        return get_config().get("AULAS_API_URL", "https://capacitacionaportesenlinea.com/api/v1/getUserPhone").strip()
 
     @property
     def aulas_api_token(self) -> str:
-        return get_config().get("AULAS_API_TOKEN", "topchat-token-access-2024")
+        return get_config().get("AULAS_API_TOKEN", "topchat-token-access-2024").strip()
 
     @property
     def ai_assistant_enabled(self) -> bool:
-        return get_config().get("AI_ASSISTANT_ENABLED", "true").lower() == "true"
+        return str(get_config().get("AI_ASSISTANT_ENABLED", "true")).lower() == "true"
 
     @property
     def ai_auto_reply(self) -> bool:
-        return get_config().get("AI_AUTO_REPLY", "true").lower() == "true"
+        return str(get_config().get("AI_AUTO_REPLY", "true")).lower() == "true"
 
     @property
     def ai_master_prompt(self) -> str:
@@ -281,16 +355,14 @@ class AppConfig:
     def ai_default_prompt(self) -> str:
         return get_config().get("AI_DEFAULT_PROMPT", "Eres un asistente virtual de la Escuela de Negocios LatinPyme.")
 
-
     @property
     def openai_model(self) -> str:
-        return get_config().get("OPENAI_MODEL", "gpt-4o-mini")
+        return get_config().get("OPENAI_MODEL", "gpt-4o-mini").strip()
 
     @property
     def is_simulation_mode(self) -> bool:
-        config = get_config()
-        # Si falta la API Key de OpenAI o el token de Meta, activamos simulación parcial o total
-        return not config.get("OPENAI_API_KEY") or not config.get("META_WA_TOKEN")
+        return not bool(self.openai_key) or not bool(self.meta_wa_token)
 
 # Instancia singleton para uso general
 app_config = AppConfig()
+

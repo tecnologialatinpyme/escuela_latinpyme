@@ -249,28 +249,55 @@ class AiAssistantService:
         # 8. Llamar a OpenAI
         api_key = app_config.openai_key
         if not api_key:
-            # Modo simulación sin OpenAI Key
-            return self._respuesta_simulada(aula_info, historial_openai)
+            print("[AiAssistant] AVISO: OpenAI API Key no encontrada o vacía. Ejecutando respuesta simulada.")
+            return self._respuesta_simulada(aula_info, historial_openai, reason="Sin API Key de OpenAI configurada en el servidor")
 
         try:
             client = OpenAI(api_key=api_key)
-            res = client.chat.completions.create(
-                model=app_config.openai_model,
-                messages=[
-                    {'role': 'system', 'content': prompt_sistema},
-                    *historial_openai
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.3,
-                max_tokens=600,
-                timeout=15
-            )
-            raw_content = res.choices[0].message.content.strip()
-            data_json   = json.loads(raw_content)
+            model_name = app_config.openai_model or "gpt-4o-mini"
+            
+            # Intento 1: Con response_format json_object
+            try:
+                res = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {'role': 'system', 'content': prompt_sistema},
+                        *historial_openai
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.3,
+                    max_tokens=600,
+                    timeout=15
+                )
+                raw_content = res.choices[0].message.content.strip()
+            except Exception as json_api_err:
+                print(f"[AiAssistant] Intento con json_object falló ({json_api_err}). Reintentando con texto estándar...")
+                # Intento 2: Fallback a texto normal
+                res = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {'role': 'system', 'content': prompt_sistema},
+                        *historial_openai
+                    ],
+                    temperature=0.3,
+                    max_tokens=600,
+                    timeout=15
+                )
+                raw_content = res.choices[0].message.content.strip()
 
-            respuesta_texto = str(data_json.get("respuesta", raw_content)).strip()
-            disparador      = str(data_json.get("disparador", "ninguno")).strip()
-            pausar_ia       = bool(data_json.get("pausar_ia", False) or disparador == "asesor_humano_soporte")
+            # Intentar estructurar la respuesta
+            respuesta_texto = raw_content
+            disparador = "ninguno"
+            pausar_ia = False
+
+            if raw_content.startswith('{') and raw_content.endswith('}'):
+                try:
+                    data_json = json.loads(raw_content)
+                    respuesta_texto = str(data_json.get("respuesta", raw_content)).strip()
+                    disparador      = str(data_json.get("disparador", "ninguno")).strip()
+                    pausar_ia       = bool(data_json.get("pausar_ia", False) or disparador == "asesor_humano_soporte")
+                except Exception:
+                    pass
 
             return {
                 'exito': True,
@@ -281,15 +308,19 @@ class AiAssistantService:
                 'modo_simulacion': False
             }
         except Exception as e:
-            print(f"[AiAssistant] Error en OpenAI completion: {e}")
-            return self._respuesta_simulada(aula_info, historial_openai)
+            err_msg = f"{type(e).__name__}: {e}"
+            print(f"[AiAssistant ERROR] Fallo llamada a OpenAI: {err_msg}")
+            import traceback
+            traceback.print_exc()
+            return self._respuesta_simulada(aula_info, historial_openai, reason=err_msg)
+
 
 
     # ──────────────────────────────────────────────────────
     # 5. Respuesta simulada (fallback sin OpenAI Key)
     # ──────────────────────────────────────────────────────
-    def _respuesta_simulada(self, aula_info: dict, historial: list) -> dict:
-        """Respuesta de fallback cuando no hay API Key de OpenAI configurada."""
+    def _respuesta_simulada(self, aula_info: dict, historial: list, reason: str = "") -> dict:
+        """Respuesta de fallback cuando no hay API Key de OpenAI configurada o ante error de llamada."""
         nombre = aula_info.get('nombre_usuario', 'Estudiante')
         aula   = aula_info.get('aula_nombre', 'LatinPyme')
         ultimo_msg = historial[-1]['content'] if historial else ''
@@ -303,8 +334,10 @@ class AiAssistantService:
             'exito': True,
             'respuesta': respuesta,
             'aula_info': aula_info,
-            'modo_simulacion': True
+            'modo_simulacion': True,
+            'error_detail': reason
         }
+
 
     # ──────────────────────────────────────────────────────
     # 6. Verificar si IA está habilitada para una conversación

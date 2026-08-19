@@ -1,14 +1,8 @@
-"""
-routes/admin.py
-══════════════════════════════════════════════════════════════════
-Panel de administración de usuarios.
-Solo accesible para usuarios con role='admin'.
-══════════════════════════════════════════════════════════════════
-"""
-import secrets
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from datetime import datetime
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response
 from flask_login import login_required, current_user
-from db import user_store
+from db import user_store, database as db
+import json
 from functools import wraps
 
 admin_bp = Blueprint('admin', __name__)
@@ -109,6 +103,23 @@ def toggle_user(user_id: int):
     return redirect(url_for('admin.users'))
 
 
+@admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
+@admin_required
+def delete_user(user_id: int):
+    """Realiza un borrado lógico (Soft Delete) en un usuario."""
+    if user_id == current_user.id:
+        flash('No puedes eliminar tu propia cuenta.', 'error')
+        return redirect(url_for('admin.users'))
+
+    success = user_store.delete_user(user_id)
+    if success:
+        flash('Usuario marcado como inactivo/eliminado (Soft Delete).', 'success')
+    else:
+        flash('Error al eliminar el usuario.', 'error')
+
+    return redirect(url_for('admin.users'))
+
+
 @admin_bp.route('/users/<int:user_id>/reset-password', methods=['POST'])
 @admin_required
 def reset_password(user_id: int):
@@ -127,3 +138,30 @@ def reset_password(user_id: int):
         flash('Error actualizando la contraseña.', 'error')
 
     return redirect(url_for('admin.users'))
+
+
+# ──────────────────────────────────────────────
+# Exportación de Base de Datos para Migración
+# ──────────────────────────────────────────────
+@admin_bp.route('/database/export', methods=['GET'])
+@admin_required
+def export_database():
+    """
+    Ruta para exportar toda la base de datos en un archivo JSON estructurado para migración.
+    """
+    try:
+        data = db.export_all_tables()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"latinpyme_database_export_{timestamp}.json"
+        
+        json_output = json.dumps(data, indent=2, ensure_ascii=False, default=str)
+        
+        return Response(
+            json_output,
+            mimetype="application/json",
+            headers={"Content-Disposition": f"attachment;filename={filename}"}
+        )
+    except Exception as e:
+        flash(f"Error exportando la base de datos: {e}", "error")
+        return redirect(url_for('admin.users'))
+

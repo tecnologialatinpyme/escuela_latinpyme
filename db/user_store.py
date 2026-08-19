@@ -49,7 +49,7 @@ def check_password(plain: str, hashed: str) -> bool:
 def get_user_by_id(user_id: int) -> dict | None:
     try:
         client = _get_client()
-        response = client.table('users').select('*').eq('id', user_id).single().execute()
+        response = client.table('users').select('*').eq('id', user_id).is_('deleted_at', 'null').single().execute()
         return response.data
     except Exception as e:
         print(f"[USER_STORE] get_user_by_id error: {e}")
@@ -59,7 +59,7 @@ def get_user_by_id(user_id: int) -> dict | None:
 def get_user_by_username(username: str) -> dict | None:
     try:
         client = _get_client()
-        response = client.table('users').select('*').eq('username', username).execute()
+        response = client.table('users').select('*').eq('username', username).is_('deleted_at', 'null').execute()
         if response.data:
             return response.data[0]
         return None
@@ -68,12 +68,15 @@ def get_user_by_username(username: str) -> dict | None:
         return None
 
 
-def list_users() -> list[dict]:
+def list_users(include_deleted: bool = False) -> list[dict]:
     try:
         client = _get_client()
-        response = client.table('users').select(
-            'id, username, email, full_name, role, is_active, created_at, last_login'
-        ).order('created_at').execute()
+        query = client.table('users').select(
+            'id, username, email, full_name, role, is_active, created_at, last_login, deleted_at'
+        )
+        if not include_deleted:
+            query = query.is_('deleted_at', 'null')
+        response = query.order('created_at').execute()
         return response.data or []
     except Exception as e:
         print(f"[USER_STORE] list_users error: {e}")
@@ -83,7 +86,7 @@ def list_users() -> list[dict]:
 def count_users() -> int:
     try:
         client = _get_client()
-        response = client.table('users').select('id', count='exact').execute()
+        response = client.table('users').select('id', count='exact').is_('deleted_at', 'null').execute()
         return response.count or 0
     except Exception:
         return 0
@@ -106,6 +109,8 @@ def create_user(username: str, email: str, password: str, full_name: str, role: 
             'password': hashed,
             'full_name': full_name,
             'role': role,
+            'is_active': True,
+            'deleted_at': None
         }).execute()
         return response.data[0] if response.data else None
     except Exception as e:
@@ -168,6 +173,28 @@ def toggle_user(user_id: int) -> bool | None:
         return None
 
 
+def delete_user(user_id: int) -> bool:
+    """Realiza Soft Delete en la tabla users marcando deleted_at y desactivándolo."""
+    try:
+        client = _get_client()
+        client.table('users').update({'deleted_at': 'now()', 'is_active': False}).eq('id', user_id).execute()
+        return True
+    except Exception as e:
+        print(f"[USER_STORE] delete_user error: {e}")
+        return False
+
+
+def restore_user(user_id: int) -> bool:
+    """Restaura un usuario desactivado o borrado lógicamente."""
+    try:
+        client = _get_client()
+        client.table('users').update({'deleted_at': None, 'is_active': True}).eq('id', user_id).execute()
+        return True
+    except Exception as e:
+        print(f"[USER_STORE] restore_user error: {e}")
+        return False
+
+
 def update_last_login(user_id: int) -> None:
     """Registra el timestamp del último login exitoso."""
     try:
@@ -178,3 +205,4 @@ def update_last_login(user_id: int) -> None:
         }).eq('id', user_id).execute()
     except Exception as e:
         print(f"[USER_STORE] update_last_login error: {e}")
+

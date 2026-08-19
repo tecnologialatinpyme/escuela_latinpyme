@@ -7,7 +7,8 @@
 CREATE TABLE IF NOT EXISTS conversations (
     phone       TEXT PRIMARY KEY,
     data        JSONB NOT NULL DEFAULT '{}',
-    updated_at  TIMESTAMPTZ DEFAULT NOW()
+    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at  TIMESTAMPTZ DEFAULT NULL
 );
 
 -- ── Tabla de usuarios del sistema ──
@@ -20,7 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
     role        TEXT DEFAULT 'asesor',
     is_active   BOOLEAN DEFAULT TRUE,
     created_at  TIMESTAMPTZ DEFAULT NOW(),
-    last_login  TIMESTAMPTZ
+    last_login  TIMESTAMPTZ,
+    deleted_at  TIMESTAMPTZ DEFAULT NULL
 );
 
 -- ── Tabla de registro de actividad ──
@@ -32,12 +34,6 @@ CREATE TABLE IF NOT EXISTS activity_log (
     ts          TIMESTAMPTZ DEFAULT NOW()
 );
 
--- ── Deshabilitar Row Level Security (RLS) para acceso con service key ──
--- Esto permite que el backend acceda con SUPABASE_SECRET_KEY sin restricciones
-ALTER TABLE conversations DISABLE ROW LEVEL SECURITY;
-ALTER TABLE users DISABLE ROW LEVEL SECURITY;
-ALTER TABLE activity_log DISABLE ROW LEVEL SECURITY;
-
 -- ── Tabla de prompts de IA por aula ──
 CREATE TABLE IF NOT EXISTS ai_prompts (
     id          BIGSERIAL PRIMARY KEY,
@@ -46,18 +42,31 @@ CREATE TABLE IF NOT EXISTS ai_prompts (
     prompt      TEXT NOT NULL,
     activo      BOOLEAN DEFAULT TRUE,
     created_at  TIMESTAMPTZ DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ DEFAULT NOW()
+    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at  TIMESTAMPTZ DEFAULT NULL
 );
 
 -- ── Tabla de estado IA por conversación ──
 CREATE TABLE IF NOT EXISTS ai_conversation_config (
     phone       TEXT PRIMARY KEY,
     ai_enabled  BOOLEAN DEFAULT TRUE,
-    updated_at  TIMESTAMPTZ DEFAULT NOW()
+    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at  TIMESTAMPTZ DEFAULT NULL
 );
 
+-- ── Migraciones / Actualizaciones para tablas existentes ──
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+ALTER TABLE ai_prompts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+ALTER TABLE ai_conversation_config ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ DEFAULT NULL;
+
+-- ── Deshabilitar Row Level Security (RLS) para acceso con service key ──
+ALTER TABLE conversations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE activity_log DISABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_prompts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_conversation_config DISABLE ROW LEVEL SECURITY;
 
 -- ── Confirmación ──
-SELECT 'Tablas creadas correctamente' AS resultado;
+SELECT 'Tablas y columnas actualizadas correctamente' AS resultado;
+

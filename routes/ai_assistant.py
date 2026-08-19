@@ -164,8 +164,85 @@ def api_save_config():
         if frontend_key in data:
             payload[config_key] = data[frontend_key]
 
-
     ok = save_config(payload)
     if ok:
         return jsonify({'exito': True, 'mensaje': 'Configuración guardada.'})
     return jsonify({'exito': False, 'error': 'Error al guardar configuración.'}), 500
+
+
+# ──────────────────────────────────────────────
+# API — Importar Prompts / Disparadores desde Excel o CSV
+# ──────────────────────────────────────────────
+@ai_assistant_bp.route('/api/prompts/import', methods=['POST'])
+@login_required
+def api_import_prompts():
+    """
+    Importa masivamente disparadores, conectores y prompts desde un archivo Excel (.xlsx/.xls) o CSV.
+    Columnas esperadas (detectadas dinámicamente):
+    - ID / Aula ID / Space ID / Disparador
+    - Nombre / Cliente / Aula / Agente
+    - Prompt / Instrucciones / Mensaje
+    """
+    import pandas as pd
+    import io
+
+    if 'file' not in request.files:
+        return jsonify({'exito': False, 'error': 'No se envió ningún archivo.'}), 400
+
+    file = request.files['file']
+    if not file or not file.filename:
+        return jsonify({'exito': False, 'error': 'Archivo no válido.'}), 400
+
+    filename = file.filename.lower()
+    try:
+        if filename.endswith('.csv'):
+            try:
+                df = pd.read_csv(file.stream, encoding='utf-8')
+            except Exception:
+                file.stream.seek(0)
+                df = pd.read_csv(file.stream, encoding='latin1')
+        elif filename.endswith(('.xlsx', '.xls')):
+            df = pd.read_excel(file)
+        else:
+            return jsonify({'exito': False, 'error': 'Formato no soportado. Debe ser .xlsx, .xls o .csv'}), 400
+
+        # Normalizar encabezados
+        cols = [str(c).strip().lower() for c in df.columns]
+        df.columns = cols
+
+        # Buscar mapeo dinámico de columnas
+        col_id = next((c for c in cols if any(k in c for k in ['aula_id', 'space_id', 'disparador', 'id'])), None)
+        col_nombre = next((c for c in cols if any(k in c for k in ['aula_nombre', 'nombre', 'cliente', 'agente', 'name'])), None)
+        col_prompt = next((c for c in cols if any(k in c for k in ['prompt', 'instruccion', 'instrucciones', 'mensaje', 'body'])), None)
+
+        if not col_id or not col_nombre or not col_prompt:
+            return jsonify({
+                'exito': False,
+                'error': f'No se pudieron identificar las columnas requeridas (ID, Nombre, Prompt). Columnas encontradas: {", ".join(cols)}'
+            }), 400
+
+        importados = 0
+        errores = 0
+
+        for _, row in df.iterrows():
+            aula_id = str(row.get(col_id, '')).strip()
+            aula_nombre = str(row.get(col_nombre, '')).strip()
+            prompt = str(row.get(col_prompt, '')).strip()
+
+            if aula_id and aula_nombre and prompt and prompt != 'nan':
+                ok = db.save_ai_prompt(aula_id, aula_nombre, prompt, activo=True)
+                if ok:
+                    importados += 1
+                else:
+                    errores += 1
+
+        return jsonify({
+            'exito': True,
+            'mensaje': f'Importación completada: {importados} prompts guardados correctamente.',
+            'importados': importados,
+            'errores': errores
+        })
+
+    except Exception as e:
+        return jsonify({'exito': False, 'error': f'Error procesando el archivo Excel: {str(e)}'}), 500
+

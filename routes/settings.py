@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
-from config.settings import get_config, save_config
+from config.settings import get_config, get_sanitized_config, save_config
 from db import user_store
 
 settings_bp = Blueprint('settings', __name__)
@@ -14,8 +14,9 @@ def index():
 @settings_bp.route('/api/get', methods=['GET'])
 @login_required
 def api_get():
-    """Retorna la configuración actual en JSON."""
-    return jsonify(get_config())
+    """Retorna la configuración enmascarada (con estado de actividad de tokens/IDs)."""
+    return jsonify(get_sanitized_config())
+
 
 @settings_bp.route('/api/save', methods=['POST'])
 @login_required

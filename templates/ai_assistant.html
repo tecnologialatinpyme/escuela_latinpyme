@@ -295,15 +295,20 @@
       <h2><i class="fa-solid fa-chalkboard-user"></i> Aulas Configuradas</h2>
       <p id="aulas-count">Cargando...</p>
     </div>
-    <div class="p-3 border-b border-slate-100">
+    <div class="p-3 border-b border-slate-100 flex flex-col gap-2">
       <button class="btn-primary w-full justify-center" style="font-size:13px;" onclick="nuevoPrompt()">
         <i class="fa-solid fa-plus"></i> Nuevo Prompt de Aula
+      </button>
+      <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="uploadExcelPrompts(event)">
+      <button class="btn-ghost w-full justify-center text-emerald-700 border-emerald-200 hover:bg-emerald-50" style="font-size:12px;" onclick="document.getElementById('excel-file-input').click()">
+        <i class="fa-solid fa-file-excel text-emerald-600"></i> Importar Excel (.xlsx/.csv)
       </button>
     </div>
     <div class="aulas-list" id="aulas-list">
       <div class="empty-state"><div class="spinner mx-auto"></div></div>
     </div>
   </div>
+
 
   <!-- ═══════════════════════════════════════
        PANEL CENTRAL — Editor de Prompt
@@ -814,8 +819,14 @@ async function testIA() {
     }
 
     document.getElementById('sim-badge-real').style.display = d.modo_simulacion ? 'none' : 'inline-flex';
-    document.getElementById('sim-badge-sim').style.display  = d.modo_simulacion ? 'inline-flex' : 'none';
+    const simBadge = document.getElementById('sim-badge-sim');
+    simBadge.style.display = d.modo_simulacion ? 'inline-flex' : 'none';
+    if (d.modo_simulacion && d.error_detail) {
+      simBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Simulado: ${escapeHtml(d.error_detail)}`;
+      simBadge.title = d.error_detail;
+    }
     document.getElementById('sim-result-box').classList.add('visible');
+
 
   } catch(e) {
     document.getElementById('sim-spinner').style.display = 'none';
@@ -830,9 +841,51 @@ function copiarRespuesta() {
   });
 }
 
+async function uploadExcelPrompts(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  Swal.fire({
+    title: 'Importando desde Excel...',
+    text: 'Cargando y procesando disparadores, conectores y prompts.',
+    allowOutsideClick: false,
+    didOpen: () => { Swal.showLoading(); }
+  });
+
+  try {
+    const res = await fetch('/ai-assistant/api/prompts/import', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+    Swal.close();
+
+    if (data.exito) {
+      Swal.fire({
+        icon: 'success',
+        title: '¡Importación Exitosa!',
+        text: data.mensaje,
+        timer: 2500
+      });
+      loadPrompts();
+    } else {
+      Swal.fire('Error al importar', data.error || 'Ocurrió un problema procesando el archivo.', 'error');
+    }
+  } catch (err) {
+    Swal.close();
+    Swal.fire('Error de conexión', err.message, 'error');
+  } finally {
+    event.target.value = '';
+  }
+}
+
 // ── Util ────────────────────────────────────────────────────
 function escapeHtml(t) {
   return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 </script>
 {% endblock %}
+

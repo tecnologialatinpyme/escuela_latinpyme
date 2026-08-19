@@ -23,7 +23,9 @@ uploads/
 .DS_Store
 Thumbs.db
 
-# IDEs
+# IDEs y Scratch
 .vscode/
 .idea/
 *.swp
+scratch/
+
