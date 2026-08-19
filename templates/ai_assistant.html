@@ -779,13 +779,7 @@ function updateCharCount() {
   document.getElementById('char-count').textContent = len.toLocaleString();
 }
 
-function escapeHtml(t) {
-  if (!t) return '';
-  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-</script>
-{% endblock %}
-im-spinner').style.display = 'none';
+    document.getElementById('sim-spinner').style.display = 'none';
     Swal.fire('Error', e.message, 'error');
   }
 }
