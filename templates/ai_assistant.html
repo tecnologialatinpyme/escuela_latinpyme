@@ -391,10 +391,16 @@ let isNewPrompt    = false;
 let currentFilter  = 'all';
 
 // ── Inicialización ────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+function initAiAssistant() {
   loadConfig();
   loadPrompts();
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAiAssistant);
+} else {
+  initAiAssistant();
+}
 
 // ── Gestión de Pestañas (Sub-navegación) ──────────────────────────────────
 function switchTab(tabName) {
