@@ -4,236 +4,78 @@
 
 {% block extra_head %}
 <style>
-  /* ── Variables neutras con acento de marca ── */
   :root {
     --ai-primary: #E30613;
     --ai-secondary: #475569;
     --ai-dark: #1e293b;
-    --ai-gradient: #1e293b;
-    --ai-glow: 0 4px 12px rgba(0,0,0,0.05);
   }
 
-  /* ── Layout principal ── */
-  .ai-page-wrapper {
+  .ai-tab-btn {
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+  .ai-tab-btn:hover { color: #1e293b; background: #f8fafc; }
+  .ai-tab-btn.active {
+    color: var(--ai-primary);
+    border-bottom-color: var(--ai-primary);
+    background: #fff;
+  }
+
+  /* Tarjetas de Aula */
+  .aula-grid-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.2s;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 64px); /* 64px = header height */
-    margin: -2rem;              /* cancela el p-8 del main */
-    overflow: hidden;
+    justify-content: space-between;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
   }
-  .ai-config-bar-wrapper { flex-shrink: 0; padding: 12px 24px 10px; }
-  .ai-container {
-    display: grid;
-    grid-template-columns: 280px 1fr 320px;
-    gap: 0;
-    flex: 1;
-    min-height: 0;   /* crucial para que flex-children no desborden */
-    overflow: hidden;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 2px 10px rgba(0,0,0,.04);
-  }
-  .ai-panel { display:flex; flex-direction:column; height:100%; overflow:hidden; min-height:0; }
-  .aulas-panel, .simulator-panel {
-    min-height:0; overflow:hidden;
+  .aula-grid-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+    border-color: #cbd5e1;
   }
 
-  /* ── Panel izquierdo: lista de aulas ── */
-  .aulas-panel {
-    background:#fff;
-    border-right:1px solid #e2e8f0;
-    display:flex; flex-direction:column;
-  }
-  .aulas-header {
-    padding:16px 16px 14px;
-    background:#1e293b;
-    color:#fff;
-  }
-  .aulas-header h2 { font-size:14px; font-weight:700; margin:0 0 2px; display:flex;align-items:center;gap:8px; }
-  .aulas-header p { font-size:11px; color:#94a3b8; margin:0; }
-  .aulas-list { flex:1; overflow-y:auto; padding:8px; }
-  .aula-card {
-    padding:12px 14px; border-radius:10px; cursor:pointer;
-    transition:all .2s; margin-bottom:6px; border:1px solid #e2e8f0;
-    background:#fff;
-  }
-  .aula-card:hover { background:#f8fafc; border-color:#cbd5e1; }
-  .aula-card.active { background:#f1f5f9; border-color:var(--ai-primary); border-left-width:4px; }
-  .aula-card .aula-name { font-size:13px; font-weight:600; color:#1e293b; }
-  .aula-card .aula-id { font-size:11px; color:#64748b; font-family:monospace; }
-  .aula-badge {
-    display:inline-flex; align-items:center; gap:4px;
-    padding:2px 8px; border-radius:20px; font-size:10px; font-weight:600;
-    margin-top:6px;
-  }
-  .aula-badge.active { background:#dcfce7; color:#16a34a; }
-  .aula-badge.inactive { background:#fef2f2; color:#ef4444; }
+  .aula-badge-active { background: #dcfce7; color: #15803d; }
+  .aula-badge-inactive { background: #fee2e2; color: #b91c1c; }
 
-  /* ── Panel central: editor ── */
-  .editor-panel {
-    background:#f8fafc;
-    border-right:1px solid #e2e8f0;
-    display:flex; flex-direction:column;
-    min-height:0;
-    overflow:hidden;
-  }
-  .editor-header {
-    padding:16px 24px 14px;
-    background:#fff;
-    border-bottom:1px solid #e2e8f0;
-    display:flex; align-items:center; justify-content:space-between;
-    flex-shrink:0;
-  }
-  .editor-title { font-size:15px; font-weight:700; color:#1e293b; }
-  .editor-body { flex:1; overflow-y:auto; padding:20px 24px 0; min-height:0; }
-
-  /* Barra de guardado siempre visible al fondo */
-  .editor-save-bar {
-    flex-shrink:0;
-    display:flex; align-items:center; justify-content:space-between;
-    padding:12px 24px;
-    background:#fff;
-    border-top:1px solid #e2e8f0;
-    box-shadow:0 -2px 10px rgba(0,0,0,.03);
-  }
-  .editor-save-bar .save-hint {
-    font-size:11px; color:#64748b; display:flex; align-items:center; gap:6px;
-  }
-
-  .form-group { margin-bottom:20px; }
-  .form-label { display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px; }
-  .form-input {
-    width:100%; padding:10px 14px; border:1px solid #cbd5e1; border-radius:10px;
-    font-size:13px; font-family:'Outfit', sans-serif; color:#1e293b;
-    background:#fff; transition:border-color .2s, box-shadow .2s;
-    outline:none; box-sizing:border-box;
-  }
-  .form-input:focus { border-color:var(--ai-primary); box-shadow:0 0 0 3px rgba(227,6,19,.08); }
-  .form-textarea { min-height:220px; resize:vertical; line-height:1.6; }
-
-  /* Variables chips */
-  .vars-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  /* Chips de variables */
   .var-chip {
-    padding:4px 10px; background:#f1f5f9; color:#475569; border:1px solid #e2e8f0;
-    border-radius:20px; font-size:11px; font-weight:600; cursor:pointer;
-    font-family:monospace; transition:all .15s;
+    padding: 4px 10px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;
+    border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer;
+    font-family: monospace; transition: all .15s;
   }
-  .var-chip:hover { background:var(--ai-primary); color:#fff; border-color:var(--ai-primary); }
+  .var-chip:hover { background: var(--ai-primary); color: #fff; border-color: var(--ai-primary); }
 
-  /* Contador de chars */
-  .char-counter { text-align:right; font-size:11px; color:#94a3b8; margin-top:4px; }
-
-  /* ── Panel derecho: simulador ── */
-  .simulator-panel {
-    background:#fff;
-    display:flex; flex-direction:column;
-  }
-  .sim-header {
-    padding:16px 18px 14px;
-    border-bottom:1px solid #e2e8f0;
-    background:#f8fafc;
-  }
-  .sim-title { font-size:14px; font-weight:700; color:#1e293b; display:flex; align-items:center; gap:8px; }
-  .sim-body { flex:1; overflow-y:auto; padding:16px 18px; display:flex; flex-direction:column; gap:14px; }
-
-  .sim-result {
-    background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;
-    padding:14px; display:none; flex-direction:column; gap:10px;
-  }
-  .sim-result.visible { display:flex; }
-
-  .sim-aula-info {
-    display:flex; align-items:center; gap:8px;
-    padding:8px 12px; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:8px;
-  }
-  .sim-aula-info .aula-icon { font-size:18px; }
-  .sim-aula-info .aula-text { font-size:12px; }
-  .sim-aula-info .aula-text strong { display:block; color:#1e293b; font-weight:700; }
-  .sim-aula-info .aula-text span { color:#64748b; }
-
-  .sim-response-bubble {
-    background:#1e293b; color:#fff;
-    padding:14px 16px; border-radius:14px 14px 14px 4px;
-    font-size:13px; line-height:1.6;
-    box-shadow:0 2px 8px rgba(0,0,0,.08);
-  }
-  .sim-badge {
-    display:inline-flex; align-items:center; gap:5px;
-    padding:3px 10px; border-radius:20px; font-size:10px; font-weight:700;
-    background:#f0fdf4; color:#16a34a;
-  }
-  .sim-badge.sim { background:#fef9c3; color:#ca8a04; }
-
-  /* ── Botones ── */
-  .btn-primary {
-    background:#E30613; color:#fff; border:none;
-    padding:9px 18px; border-radius:8px; font-size:13px; font-weight:600;
-    cursor:pointer; transition:all .2s; display:flex; align-items:center; gap:8px;
-    font-family:'Outfit', sans-serif;
-  }
-  .btn-primary:hover { background:#c9040f; transform:translateY(-1px); }
-  .btn-danger {
-    background:#fee2e2; color:#ef4444; border:none;
-    padding:8px 14px; border-radius:8px; font-size:12px; font-weight:600;
-    cursor:pointer; transition:all .2s; font-family:'Outfit', sans-serif;
-  }
-  .btn-danger:hover { background:#fecaca; }
-  .btn-ghost {
-    background:transparent; color:#64748b; border:1px solid #cbd5e1;
-    padding:8px 14px; border-radius:8px; font-size:13px; font-weight:600;
-    cursor:pointer; transition:all .2s; font-family:'Outfit', sans-serif;
-  }
-  .btn-ghost:hover { border-color:#94a3b8; color:#1e293b; background:#f8fafc; }
-  .btn-sm { padding:6px 12px; font-size:12px; }
-
-  /* ── Toggle switch global ── */
-  .toggle-row { display:flex; align-items:center; gap:10px; }
-  .toggle-label { font-size:12px; font-weight:600; color:#475569; }
-  .toggle-switch { position:relative; display:inline-block; width:44px; height:24px; }
-  .toggle-switch input { opacity:0; width:0; height:0; }
+  /* Toggle Switch */
+  .toggle-switch { position: relative; display: inline-block; width: 42px; height: 22px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
   .toggle-slider {
-    position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0;
-    background:#cbd5e1; transition:.3s; border-radius:24px;
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background: #cbd5e1; transition: .3s; border-radius: 22px;
   }
   .toggle-slider:before {
-    position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px;
-    background:#fff; transition:.3s; border-radius:50%;
-    box-shadow:0 1px 3px rgba(0,0,0,.2);
+    position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+    background: #fff; transition: .3s; border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
   }
-  input:checked + .toggle-slider { background:var(--ai-primary); }
-  input:checked + .toggle-slider:before { transform:translateX(20px); }
+  input:checked + .toggle-slider { background: var(--ai-primary); }
+  input:checked + .toggle-slider:before { transform: translateX(20px); }
 
-  /* ── Config global bar ── */
-  .config-bar {
-    background:#fff; color:#1e293b;
-    border:1px solid #e2e8f0;
-    padding:10px 20px;
-    display:flex; align-items:center; gap:20px; flex-wrap:wrap;
-    box-shadow:0 2px 6px rgba(0,0,0,.02);
-  }
-  .config-bar-title { font-size:13px; font-weight:700; color:#1e293b; }
-
-  /* ── Empty state ── */
-  .empty-state { text-align:center; padding:40px 20px; color:#94a3b8; }
-  .empty-state i { font-size:40px; margin-bottom:12px; display:block; }
-  .empty-state p { font-size:13px; }
-
-  /* ── Spinner ── */
-  .spinner { width:18px; height:18px; border:2px solid rgba(227,6,19,.2); border-top-color:var(--ai-primary); border-radius:50%; animation:spin .7s linear infinite; }
-  @keyframes spin { to { transform:rotate(360deg); } }
-
-  /* ── Scrollbar ── */
-  ::-webkit-scrollbar { width:5px; }
-  ::-webkit-scrollbar-track { background:#f1f5f9; }
-  ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:10px; }
-
-  /* ── Responsive ── */
-  @media (max-width:1100px) {
-    .ai-container { grid-template-columns:240px 1fr; }
-    .simulator-panel { display:none; }
-  }
+  .spinner { width: 18px; height: 18px; border: 2px solid rgba(227,6,19,.2); border-top-color: var(--ai-primary); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
-
 {% endblock %}
 
 {% block header_title %}
@@ -247,307 +89,488 @@
   </span>
 {% endblock %}
 
-
 {% block content %}
-<div class="ai-page-wrapper">
+<div class="space-y-6">
 
-  <!-- Barra de configuración global -->
-  <div class="ai-config-bar-wrapper">
-    <div class="config-bar rounded-xl" id="config-bar">
-      <span class="config-bar-title"><i class="fa-solid fa-sliders text-brand-500 mr-2"></i>Configuración Global</span>
+  <!-- BARRA SUPERIOR DE SUB-NAVEGACIÓN Y CONFIGURACIÓN GLOBAL -->
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-wrap items-center justify-between px-4">
+    <!-- Pestañas de Navegación -->
+    <div class="flex items-center space-x-1 border-b md:border-b-0 border-slate-200">
+      <button class="ai-tab-btn active" id="tab-btn-aulas" onclick="switchTab('aulas')">
+        <i class="fa-solid fa-chalkboard-user text-brand-600"></i>
+        <span>Aulas y Prompts</span>
+        <span id="badge-aulas-count" class="ml-1 px-2 py-0.5 rounded-full text-xs bg-slate-100 text-slate-700">0</span>
+      </button>
 
-      <div class="toggle-row">
-        <span class="toggle-label">Asistente IA</span>
+      <button class="ai-tab-btn" id="tab-btn-editor" onclick="switchTab('editor')">
+        <i class="fa-solid fa-pen-to-square"></i>
+        <span id="tab-editor-title">Editor de Prompt</span>
+      </button>
+
+      <button class="ai-tab-btn" id="tab-btn-simulador" onclick="switchTab('simulador')">
+        <i class="fa-solid fa-vial"></i>
+        <span>Simulador de IA</span>
+      </button>
+    </div>
+
+    <!-- Opciones de Configuración Global -->
+    <div class="flex items-center gap-6 py-2 px-2 text-xs font-semibold text-slate-600 flex-wrap">
+      <div class="flex items-center gap-2">
+        <span>Asistente IA:</span>
         <label class="toggle-switch">
           <input type="checkbox" id="toggle-ai-global" onchange="saveGlobalConfig()">
           <span class="toggle-slider"></span>
         </label>
       </div>
 
-      <div class="toggle-row">
-        <span class="toggle-label">Respuesta Automática</span>
+      <div class="flex items-center gap-2">
+        <span>Respuesta Auto:</span>
         <label class="toggle-switch">
           <input type="checkbox" id="toggle-auto-reply" onchange="saveGlobalConfig()">
           <span class="toggle-slider"></span>
         </label>
       </div>
 
-      <div class="flex items-center gap-2 ml-auto">
-        <select id="select-model" onchange="saveGlobalConfig()"
-          style="background:#fff;color:#1e293b;border:1px solid #cbd5e1;padding:5px 10px;border-radius:8px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;">
+      <div class="flex items-center gap-2">
+        <span>Modelo:</span>
+        <select id="select-model" onchange="saveGlobalConfig()" class="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 text-xs outline-none">
           <option value="gpt-4o-mini">GPT-4o Mini</option>
           <option value="gpt-4o">GPT-4o</option>
           <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
         </select>
-        <span style="font-size:11px;color:#64748b;font-weight:600;">Modelo</span>
       </div>
     </div>
   </div>
 
-  <!-- Grid principal -->
-  <div class="ai-container">
 
-  <!-- ═══════════════════════════════════════
-       PANEL IZQUIERDO — Lista de Aulas
-  ════════════════════════════════════════ -->
-  <div class="aulas-panel">
-    <div class="aulas-header">
-      <h2><i class="fa-solid fa-chalkboard-user"></i> Aulas Configuradas</h2>
-      <p id="aulas-count">Cargando...</p>
+  <!-- ══════════════════════════════════════════════════════════════════════
+       VISTA 1: AULAS Y PROMPTS (GRID DE TARJETAS LIMPIO Y ESPACIOSO)
+  ══════════════════════════════════════════════════════════════════════ -->
+  <div id="view-aulas" class="space-y-4">
+    
+    <!-- Filtros, Búsqueda y Botones de Acción -->
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+      <!-- Buscador -->
+      <div class="relative flex-1 w-full">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+        <input type="text" id="search-aulas" oninput="filterAulas()"
+               placeholder="Buscar por nombre de aula, space_id o disparador..."
+               class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-brand-500 transition">
+      </div>
+
+      <!-- Filtro Estado -->
+      <div class="flex items-center gap-2 shrink-0">
+        <button onclick="setFilterStatus('all')" id="btn-filter-all" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white">Todos</button>
+        <button onclick="setFilterStatus('active')" id="btn-filter-active" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">Activos</button>
+        <button onclick="setFilterStatus('inactive')" id="btn-filter-inactive" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200">Inactivos</button>
+      </div>
+
+      <!-- Acciones de Creación / Importación -->
+      <div class="flex items-center gap-2 shrink-0 w-full md:w-auto">
+        <button onclick="nuevoPrompt()" class="flex-1 md:flex-none px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-lg text-xs flex items-center justify-center gap-2 shadow-sm transition">
+          <i class="fa-solid fa-plus"></i> Nuevo Prompt
+        </button>
+
+        <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="uploadExcelPrompts(event)">
+        <button onclick="document.getElementById('excel-file-input').click()" class="flex-1 md:flex-none px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold rounded-lg text-xs flex items-center justify-center gap-2 transition">
+          <i class="fa-solid fa-file-excel text-emerald-600"></i> Importar Excel
+        </button>
+      </div>
     </div>
-    <div class="p-3 border-b border-slate-100 flex flex-col gap-2">
-      <button class="btn-primary w-full justify-center" style="font-size:13px;" onclick="nuevoPrompt()">
-        <i class="fa-solid fa-plus"></i> Nuevo Prompt de Aula
-      </button>
-      <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="uploadExcelPrompts(event)">
-      <button class="btn-ghost w-full justify-center text-emerald-700 border-emerald-200 hover:bg-emerald-50" style="font-size:12px;" onclick="document.getElementById('excel-file-input').click()">
-        <i class="fa-solid fa-file-excel text-emerald-600"></i> Importar Excel (.xlsx/.csv)
-      </button>
-    </div>
-    <div class="aulas-list" id="aulas-list">
-      <div class="empty-state"><div class="spinner mx-auto"></div></div>
+
+    <!-- Grid de Tarjetas de Aulas -->
+    <div id="aulas-grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div class="col-span-full text-center py-12 text-slate-400">
+        <div class="spinner mx-auto mb-2"></div>
+        <p class="text-sm">Cargando aulas y prompts configurados...</p>
+      </div>
     </div>
   </div>
 
 
-  <!-- ═══════════════════════════════════════
-       PANEL CENTRAL — Editor de Prompt
-  ════════════════════════════════════════ -->
-  <div class="editor-panel">
-
-    <!-- Cabecera fija -->
-    <div class="editor-header">
-      <div>
-        <div class="editor-title" id="editor-aula-title">Selecciona o crea un prompt</div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:2px;" id="editor-aula-subtitle">
-          Haz clic en una aula o crea una nueva
+  <!-- ══════════════════════════════════════════════════════════════════════
+       VISTA 2: EDITOR DE PROMPTS (VISTA DEDICADA ESPACIOSA)
+  ══════════════════════════════════════════════════════════════════════ -->
+  <div id="view-editor" class="hidden space-y-6">
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+      
+      <!-- Cabecera del Editor -->
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800" id="editor-aula-title">Nuevo Prompt de Aula</h2>
+          <p class="text-xs text-slate-500" id="editor-aula-subtitle">Define las instrucciones específicas para este agente de IA</p>
         </div>
-      </div>
-      <!-- Badge de estado activo/inactivo -->
-      <div id="editor-actions" style="display:none;">
-        <label class="toggle-switch" title="Activar/desactivar este prompt">
-          <input type="checkbox" id="toggle-prompt-active" onchange="togglePromptActive()">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <!-- Cuerpo scrollable -->
-    <div class="editor-body">
-      <form id="prompt-form" onsubmit="savePrompt(event)">
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div class="form-group">
-            <label class="form-label">Nombre del Aula / Cliente</label>
-            <input type="text" id="f-aula-nombre" class="form-input" placeholder="ej: EduFundación Coomeva" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label">ID del Aula (space_id)</label>
-            <input type="text" id="f-aula-id" class="form-input" placeholder="ej: 4" required>
-            <div style="font-size:10px;color:#94a3b8;margin-top:4px;">
-              <i class="fa-solid fa-circle-info"></i> Campo <code>space_id</code> de la API de Aulas
-            </div>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Prompt del Sistema para la IA</label>
-          <textarea id="f-prompt" class="form-input form-textarea"
-            placeholder="Eres un asistente virtual de {aula}. Responde de manera cordial y profesional las preguntas de {nombre_usuario}..."
-            oninput="updateCharCount()" required></textarea>
-          <div class="char-counter"><span id="char-count">0</span> caracteres</div>
-
-          <!-- Variables disponibles -->
-          <div style="margin-top:10px;">
-            <div style="font-size:11px;font-weight:600;color:#475569;margin-bottom:6px;">
-              <i class="fa-solid fa-code"></i> Variables disponibles (clic para insertar):
-            </div>
-            <div class="vars-row">
-              <span class="var-chip" onclick="insertVar('{nombre_usuario}')">{nombre_usuario}</span>
-              <span class="var-chip" onclick="insertVar('{aula}')">{aula}</span>
-              <span class="var-chip" onclick="insertVar('{email}')">{email}</span>
-              <span class="var-chip" onclick="insertVar('{fecha}')">{fecha}</span>
-              <span class="var-chip" onclick="insertVar('{prompt_maestro}')">{prompt_maestro}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Prompt Maestro Global (General & Soporte) -->
-        <div class="form-group" style="background:#fff;border:1px solid #e2e8f0;padding:16px;border-radius:12px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.02);">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-            <label class="form-label" style="color:#1e293b;margin:0;">
-              <i class="fa-solid fa-crown" style="color:#f59e0b;"></i> Prompt Maestro (Reglas Generales y Soporte Técnico)
-            </label>
-            <span style="font-size:10px;background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;padding:2px 8px;border-radius:12px;font-weight:600;">Se aplica a TODAS las aulas</span>
-          </div>
-          <p style="font-size:11px;color:#64748b;margin-bottom:10px;">
-            Este prompt define la identidad global de LatinPyme, tono de voz, instrucciones de soporte y restricciones. Se antepone automáticamente al prompt de cada aula.
-          </p>
-          <textarea id="f-master-prompt" class="form-input form-textarea"
-            style="min-height:120px;background:#fff;color:#1e293b;border-color:#cbd5e1;"
-            placeholder="Eres el Asistente Virtual Oficial de la Escuela de Negocios LatinPyme..."></textarea>
-          <button type="button" class="btn-primary btn-sm mt-2" style="background:#E30613;" onclick="saveMasterPrompt()">
-            <i class="fa-solid fa-floppy-disk"></i> Guardar Prompt Maestro
-          </button>
-        </div>
-
-        <!-- Prompt por defecto -->
-        <div class="form-group" style="background:#fff;border:1px solid #e2e8f0;padding:14px;border-radius:10px;margin-bottom:24px;">
-          <label class="form-label" style="color:#475569;">
-            <i class="fa-solid fa-shield-halved text-brand-500"></i> Prompt por Defecto (usuarios sin aula asignada)
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-semibold text-slate-600">Estado Activo:</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-prompt-active" checked>
+            <span class="toggle-slider"></span>
           </label>
-          <textarea id="f-default-prompt" class="form-input form-textarea"
-            style="min-height:80px;background:#fff;color:#1e293b;border-color:#cbd5e1;"
-            placeholder="Eres un asistente de LatinPyme..."></textarea>
-          <button type="button" class="btn-ghost btn-sm" style="margin-top:8px;" onclick="saveDefaultPrompt()">
-            <i class="fa-solid fa-save"></i> Guardar prompt por defecto
-          </button>
+        </div>
+      </div>
+
+      <!-- Formulario principal -->
+      <form id="prompt-form" onsubmit="savePrompt(event)" class="space-y-5">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nombre del Aula / Cliente</label>
+            <input type="text" id="f-aula-nombre" required placeholder="ej: EduFundación Coomeva"
+                   class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:border-brand-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">ID del Aula (space_id o disparador)</label>
+            <input type="text" id="f-aula-id" required placeholder="ej: 4"
+                   class="w-full px-3.5 py-2 border border-slate-300 rounded-lg text-sm font-mono outline-none focus:border-brand-500">
+          </div>
         </div>
 
+        <!-- Textarea Prompt -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Prompt del Sistema (Instrucciones)</label>
+            <span class="text-xs text-slate-400"><span id="char-count">0</span> caracteres</span>
+          </div>
+          <textarea id="f-prompt" required oninput="updateCharCount()" rows="10"
+                    placeholder="Eres el asistente virtual para {aula}..."
+                    class="w-full p-4 border border-slate-300 rounded-xl text-sm font-sans leading-relaxed outline-none focus:border-brand-500 shadow-inner"></textarea>
+          
+          <!-- Chips de variables -->
+          <div class="mt-3 bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-wrap items-center gap-2">
+            <span class="text-xs font-semibold text-slate-600 mr-2"><i class="fa-solid fa-code text-brand-600"></i> Insertar Variable:</span>
+            <span class="var-chip" onclick="insertVar('{nombre_usuario}')">{nombre_usuario}</span>
+            <span class="var-chip" onclick="insertVar('{aula}')">{aula}</span>
+            <span class="var-chip" onclick="insertVar('{email}')">{email}</span>
+            <span class="var-chip" onclick="insertVar('{fecha}')">{fecha}</span>
+            <span class="var-chip" onclick="insertVar('{prompt_maestro}')">{prompt_maestro}</span>
+          </div>
+        </div>
 
+        <!-- Acordeón / Colapsables para Prompts Globales -->
+        <div class="space-y-4 pt-4 border-t border-slate-100">
+          <details class="bg-slate-50 rounded-xl border border-slate-200 p-4">
+            <summary class="font-bold text-sm text-slate-800 cursor-pointer flex items-center justify-between">
+              <span><i class="fa-solid fa-crown text-amber-500 mr-2"></i> Prompt Maestro Global (Aplica a todas las aulas)</span>
+              <span class="text-xs text-slate-400">Clic para abrir/editar</span>
+            </summary>
+            <div class="mt-3 space-y-2">
+              <textarea id="f-master-prompt" rows="5" class="w-full p-3 border border-slate-300 rounded-lg text-xs font-mono"></textarea>
+              <button type="button" onclick="saveMasterPrompt()" class="px-3 py-1.5 bg-brand-600 text-white rounded text-xs font-semibold">Guardar Prompt Maestro</button>
+            </div>
+          </details>
 
+          <details class="bg-slate-50 rounded-xl border border-slate-200 p-4">
+            <summary class="font-bold text-sm text-slate-800 cursor-pointer flex items-center justify-between">
+              <span><i class="fa-solid fa-shield-halved text-brand-600 mr-2"></i> Prompt Por Defecto (Para usuarios sin aula específica)</span>
+              <span class="text-xs text-slate-400">Clic para abrir/editar</span>
+            </summary>
+            <div class="mt-3 space-y-2">
+              <textarea id="f-default-prompt" rows="4" class="w-full p-3 border border-slate-300 rounded-lg text-xs font-mono"></textarea>
+              <button type="button" onclick="saveDefaultPrompt()" class="px-3 py-1.5 bg-slate-700 text-white rounded text-xs font-semibold">Guardar Prompt por Defecto</button>
+            </div>
+          </details>
+        </div>
+
+        <!-- Barra inferior de acciones -->
+        <div class="flex items-center justify-between pt-4 border-t border-slate-200">
+          <button type="button" id="btn-delete" onclick="deletePrompt()" class="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold transition hidden">
+            <i class="fa-solid fa-trash mr-1"></i> Eliminar Prompt
+          </button>
+
+          <div class="flex items-center gap-3 ml-auto">
+            <button type="button" onclick="switchTab('aulas')" class="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50">Cancelar</button>
+            <button type="submit" id="btn-save" class="px-6 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-md transition flex items-center gap-2">
+              <i class="fa-solid fa-floppy-disk"></i> Guardar Prompt
+            </button>
+          </div>
+        </div>
 
       </form>
-    </div><!-- /editor-body -->
-
-    <!-- ── Barra de guardado SIEMPRE VISIBLE (sticky) ── -->
-    <div class="editor-save-bar">
-      <div class="flex gap-2">
-        <button type="button" class="btn-danger btn-sm" id="btn-delete"
-          onclick="deletePrompt()" style="display:none;">
-          <i class="fa-solid fa-trash"></i> Eliminar
-        </button>
-        <span class="save-hint" id="save-hint-text">
-          <i class="fa-solid fa-circle-info" style="color:#ff9e9e;"></i>
-          Selecciona o crea un prompt para guardar
-        </span>
-
-      </div>
-      <div class="flex gap-2">
-        <button type="button" class="btn-ghost" onclick="resetForm()">Cancelar</button>
-        <button type="button" class="btn-primary" id="btn-save" onclick="savePrompt(event)">
-          <i class="fa-solid fa-floppy-disk"></i> Guardar Prompt
-        </button>
-      </div>
-    </div><!-- /editor-save-bar -->
-
-  </div><!-- /editor-panel -->
-
-  <!-- ═══════════════════════════════════════
-       PANEL DERECHO — Simulador
-  ════════════════════════════════════════ -->
-  <div class="simulator-panel">
-    <div class="sim-header">
-      <div class="sim-title">
-        <i class="fa-solid fa-flask" style="color:var(--ai-primary)"></i>
-        Simulador de Respuesta
-      </div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:4px;">
-        Prueba la IA sin enviar mensajes reales
-      </div>
-    </div>
-
-    <div class="sim-body">
-      <div class="form-group">
-        <label class="form-label">Número de Teléfono</label>
-        <div style="display:flex;gap:8px;">
-          <input type="text" id="sim-telefono" class="form-input" placeholder="573002711932"
-            style="flex:1;" oninput="clearAulaInfo()">
-          <button type="button" class="btn-ghost btn-sm" onclick="lookupAula()" title="Buscar aula">
-            <i class="fa-solid fa-magnifying-glass"></i>
-          </button>
-        </div>
-        <!-- Info aula encontrada -->
-        <div id="sim-aula-result" class="sim-aula-info mt-2" style="display:none;">
-          <span class="aula-icon">🎓</span>
-          <div class="aula-text">
-            <strong id="sim-aula-nombre">—</strong>
-            <span id="sim-aula-usuario">—</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Mensaje del usuario</label>
-        <textarea id="sim-mensaje" class="form-input" style="min-height:90px;"
-          placeholder="¿Cuándo inicia el módulo 3?"></textarea>
-      </div>
-
-      <button class="btn-primary w-full justify-center" onclick="testIA()">
-        <i class="fa-solid fa-paper-plane"></i> Probar Asistente IA
-      </button>
-
-      <!-- Resultado -->
-      <div id="sim-result-box" class="sim-result">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:11px;font-weight:600;color:#475569;">RESPUESTA DE LA IA</span>
-          <div style="display:flex;gap:6px;">
-            <span id="sim-badge-real" class="sim-badge"><i class="fa-solid fa-check"></i> Real</span>
-            <span id="sim-badge-sim" class="sim-badge sim" style="display:none;"><i class="fa-solid fa-flask"></i> Simulado</span>
-          </div>
-        </div>
-
-        <!-- Info de la aula en resultado -->
-        <div id="sim-result-aula" class="sim-aula-info" style="display:none;">
-          <span class="aula-icon">🏫</span>
-          <div class="aula-text">
-            <strong id="sim-result-aula-nombre">—</strong>
-            <span id="sim-result-aula-id">—</span>
-          </div>
-        </div>
-
-        <div class="sim-response-bubble" id="sim-response-text">—</div>
-
-        <!-- Copiar al editor de conversaciones -->
-        <button class="btn-ghost btn-sm" onclick="copiarRespuesta()">
-          <i class="fa-solid fa-copy"></i> Copiar respuesta
-        </button>
-      </div>
-
-      <!-- Spinner mientras procesa -->
-      <div id="sim-spinner" style="display:none;text-align:center;padding:20px;">
-        <div class="spinner mx-auto mb-2"></div>
-        <p style="font-size:12px;color:#94a3b8;">Consultando IA...</p>
-      </div>
     </div>
   </div>
 
-  </div><!-- /ai-container -->
 
-</div><!-- /ai-page-wrapper -->
+  <!-- ══════════════════════════════════════════════════════════════════════
+       VISTA 3: SIMULADOR DE IA (VISTA DEDICADA ESPACIOSA)
+  ══════════════════════════════════════════════════════════════════════ -->
+  <div id="view-simulador" class="hidden space-y-6">
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+      
+      <div class="border-b border-slate-100 pb-4 mb-6">
+        <h2 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-flask text-brand-600 mr-2"></i> Simulador de Respuesta IA</h2>
+        <p class="text-xs text-slate-500">Prueba el comportamiento exacto de los Agentes de IA en tiempo real sin enviar mensajes de WhatsApp</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- Panel Izquierdo: Inputs de prueba -->
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Número de Teléfono del Estudiante</label>
+            <div class="flex gap-2">
+              <input type="text" id="sim-telefono" placeholder="ej: 573002711932" value="573002711932"
+                     class="flex-1 px-3.5 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:border-brand-500">
+              <button type="button" onclick="lookupAula()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold">
+                <i class="fa-solid fa-magnifying-glass"></i> Consultar Aula
+              </button>
+            </div>
+          </div>
+
+          <!-- Info de Aula detectada -->
+          <div id="sim-aula-result" class="p-3 bg-slate-50 border border-slate-200 rounded-lg hidden flex items-center gap-3">
+            <span class="text-2xl">🎓</span>
+            <div class="text-xs">
+              <strong id="sim-aula-nombre" class="block text-slate-800 font-bold">—</strong>
+              <span id="sim-aula-usuario" class="text-slate-500">—</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Mensaje Enviado por el Usuario</label>
+            <textarea id="sim-mensaje" rows="4" placeholder="ej: Hola, requiero información del taller de IA o soporte con mi certificado"
+                      class="w-full p-3 border border-slate-300 rounded-lg text-sm outline-none focus:border-brand-500">Quiero información sobre un curso...</textarea>
+          </div>
+
+          <button onclick="testIA()" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-md transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-paper-plane"></i> Generar Respuesta de IA
+          </button>
+        </div>
+
+        <!-- Panel Derecho: Resultado -->
+        <div class="space-y-4 bg-slate-50 p-5 rounded-xl border border-slate-200 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Respuesta Generada por IA:</span>
+              <div class="flex gap-2">
+                <span id="sim-badge-real" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 hidden"><i class="fa-solid fa-check mr-1"></i> Real</span>
+                <span id="sim-badge-sim" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 hidden"><i class="fa-solid fa-flask mr-1"></i> Simulado</span>
+              </div>
+            </div>
+
+            <!-- Loader Spinner -->
+            <div id="sim-spinner" class="py-12 text-center hidden">
+              <div class="spinner mx-auto mb-2"></div>
+              <span class="text-xs text-slate-400">Consultando a OpenAI...</span>
+            </div>
+
+            <!-- Resultado Bubble -->
+            <div id="sim-result-box" class="space-y-3 hidden">
+              <div class="bg-slate-900 text-white p-4 rounded-xl text-sm leading-relaxed shadow-lg font-sans whitespace-pre-wrap" id="sim-response-text">
+                —
+              </div>
+
+              <div id="sim-result-aula" class="text-xs text-slate-500 bg-white p-2.5 rounded-lg border border-slate-200">
+                <span class="font-bold text-slate-700">Aula Detectada:</span> <span id="sim-result-aula-nombre">—</span> (<span id="sim-result-aula-id">—</span>)
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-200 flex justify-end">
+            <button onclick="copiarRespuesta()" class="px-4 py-1.5 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-semibold flex items-center gap-1.5">
+              <i class="fa-solid fa-copy"></i> Copiar Respuesta
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+</div>
 {% endblock %}
 
 
 {% block extra_scripts %}
 <script>
-// ── Estado global ──────────────────────────────────────────
+// ── Estado Global ──────────────────────────────────────────────────────────
 let prompts        = [];
+let filteredPrompts = [];
 let activeAulaId   = null;
 let isNewPrompt    = false;
+let currentFilter  = 'all';
 
-// ── Inicialización ──────────────────────────────────────────
+// ── Inicialización ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadConfig();
   loadPrompts();
 });
 
-// ── Cargar configuración global ──────────────────────────────
+// ── Gestión de Pestañas (Sub-navegación) ──────────────────────────────────
+function switchTab(tabName) {
+  // Ocultar todas las vistas
+  document.getElementById('view-aulas').classList.add('hidden');
+  document.getElementById('view-editor').classList.add('hidden');
+  document.getElementById('view-simulador').classList.add('hidden');
+
+  // Desactivar estilo de botones
+  document.getElementById('tab-btn-aulas').classList.remove('active');
+  document.getElementById('tab-btn-editor').classList.remove('active');
+  document.getElementById('tab-btn-simulador').classList.remove('active');
+
+  // Mostrar vista seleccionada
+  if (tabName === 'aulas') {
+    document.getElementById('view-aulas').classList.remove('hidden');
+    document.getElementById('tab-btn-aulas').classList.add('active');
+  } else if (tabName === 'editor') {
+    document.getElementById('view-editor').classList.remove('hidden');
+    document.getElementById('tab-btn-editor').classList.add('active');
+  } else if (tabName === 'simulador') {
+    document.getElementById('view-simulador').classList.remove('hidden');
+    document.getElementById('tab-btn-simulador').classList.add('active');
+  }
+}
+
+// ── Cargar Prompts / Aulas ────────────────────────────────────────────────
+async function loadPrompts() {
+  try {
+    const r = await fetch('/ai-assistant/api/prompts');
+    const d = await r.json();
+    prompts = d.prompts || [];
+    document.getElementById('badge-aulas-count').textContent = prompts.length;
+    filterAulas();
+  } catch (e) {
+    document.getElementById('aulas-grid-container').innerHTML = `
+      <div class="col-span-full text-center py-8 text-red-500">
+        <i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i>
+        <p class="text-sm">Error cargando las aulas desde Supabase.</p>
+      </div>`;
+  }
+}
+
+// ── Filtrado y Renderizado del Grid ───────────────────────────────────────
+function setFilterStatus(status) {
+  currentFilter = status;
+  ['all', 'active', 'inactive'].forEach(st => {
+    const btn = document.getElementById(`btn-filter-${st}`);
+    if (st === status) {
+      btn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-white";
+    } else {
+      btn.className = "px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200";
+    }
+  });
+  filterAulas();
+}
+
+function filterAulas() {
+  const queryInput = document.getElementById('search-aulas');
+  const query = (queryInput && queryInput.value) ? queryInput.value.toLowerCase().trim() : '';
+  
+  filteredPrompts = prompts.filter(p => {
+    const matchesQuery = !query || 
+      (p.aula_nombre && p.aula_nombre.toLowerCase().includes(query)) ||
+      (p.aula_id && p.aula_id.toLowerCase().includes(query)) ||
+      (p.prompt && p.prompt.toLowerCase().includes(query));
+
+    const matchesStatus = currentFilter === 'all' ||
+      (currentFilter === 'active' && p.activo) ||
+      (currentFilter === 'inactive' && !p.activo);
+
+    return matchesQuery && matchesStatus;
+  });
+
+  renderAulasGrid();
+}
+
+function renderAulasGrid() {
+  const grid = document.getElementById('aulas-grid-container');
+  
+  if (filteredPrompts.length === 0) {
+    grid.innerHTML = `
+      <div class="col-span-full text-center py-12 text-slate-400 bg-white rounded-xl border border-slate-200">
+        <i class="fa-solid fa-chalkboard-user text-3xl mb-2 block"></i>
+        <p class="text-sm font-semibold">No se encontraron aulas o prompts.</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = filteredPrompts.map(p => `
+    <div class="aula-grid-card">
+      <div>
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <h3 class="font-bold text-sm text-slate-800 leading-snug">${escapeHtml(p.aula_nombre)}</h3>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${p.activo ? 'aula-badge-active' : 'aula-badge-inactive'} shrink-0">
+            ${p.activo ? 'Activo' : 'Inactivo'}
+          </span>
+        </div>
+        <div class="text-xs text-slate-500 font-mono mb-4">
+          ID / Trigger: <span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">${escapeHtml(p.aula_id)}</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 pt-3 border-t border-slate-100">
+        <button onclick="editarAula('${p.aula_id}')" class="flex-1 py-1.5 bg-slate-900 hover:bg-brand-600 text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-pen-to-square"></i> Editar
+        </button>
+        <button onclick="probarEnSimulador('${p.aula_id}')" class="px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-semibold transition" title="Probar en simulador">
+          <i class="fa-solid fa-flask"></i>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Acciones de Selección y Edición ────────────────────────────────────────
+function editarAula(aulaId) {
+  activeAulaId = aulaId;
+  isNewPrompt = false;
+  const p = prompts.find(x => x.aula_id == aulaId);
+  if (!p) return;
+
+  document.getElementById('editor-aula-title').textContent = p.aula_nombre;
+  document.getElementById('editor-aula-subtitle').textContent = `ID / Trigger: ${p.aula_id} • Editando Prompt`;
+  document.getElementById('tab-editor-title').textContent = `Editando: ${p.aula_nombre}`;
+  document.getElementById('f-aula-id').value = p.aula_id;
+  document.getElementById('f-aula-nombre').value = p.aula_nombre;
+  document.getElementById('f-prompt').value = p.prompt;
+  document.getElementById('toggle-prompt-active').checked = p.activo;
+  document.getElementById('btn-delete').classList.remove('hidden');
+  
+  updateCharCount();
+  switchTab('editor');
+}
+
+function nuevoPrompt() {
+  activeAulaId = null;
+  isNewPrompt = true;
+  document.getElementById('editor-aula-title').textContent = 'Nuevo Prompt de Aula';
+  document.getElementById('editor-aula-subtitle').textContent = 'Completa los campos para configurar un nuevo agente o aula';
+  document.getElementById('tab-editor-title').textContent = 'Nuevo Prompt';
+  document.getElementById('f-aula-id').value = '';
+  document.getElementById('f-aula-nombre').value = '';
+  document.getElementById('f-prompt').value = '';
+  document.getElementById('toggle-prompt-active').checked = true;
+  document.getElementById('btn-delete').classList.add('hidden');
+  
+  updateCharCount();
+  switchTab('editor');
+}
+
+function probarEnSimulador(aulaId) {
+  const p = prompts.find(x => x.aula_id == aulaId);
+  if (p) {
+    document.getElementById('sim-mensaje').value = `Hola, quiero información sobre ${p.aula_nombre}`;
+  }
+  switchTab('simulador');
+}
+
+// ── Cargar / Guardar Config Global ─────────────────────────────────────────
 async function loadConfig() {
   try {
     const r = await fetch('/ai-assistant/api/config');
     const d = await r.json();
-    document.getElementById('toggle-ai-global').checked    = d.ai_assistant_enabled === 'true';
-    document.getElementById('toggle-auto-reply').checked   = d.ai_auto_reply === 'true';
-    document.getElementById('select-model').value          = d.openai_model || 'gpt-4o-mini';
-    document.getElementById('f-master-prompt').value       = d.ai_master_prompt || '';
-    document.getElementById('f-default-prompt').value      = d.ai_default_prompt || '';
+    document.getElementById('toggle-ai-global').checked  = d.ai_assistant_enabled === 'true';
+    document.getElementById('toggle-auto-reply').checked = d.ai_auto_reply === 'true';
+    document.getElementById('select-model').value        = d.openai_model || 'gpt-4o-mini';
+    document.getElementById('f-master-prompt').value     = d.ai_master_prompt || '';
+    document.getElementById('f-default-prompt').value    = d.ai_default_prompt || '';
     updateGlobalBadge(d.ai_assistant_enabled === 'true');
   } catch(e) { console.error(e); }
 }
 
 function updateGlobalBadge(enabled) {
   const badge = document.getElementById('global-status-badge');
-  badge.classList.toggle('hidden', !enabled);
+  if (badge) badge.classList.toggle('hidden', !enabled);
 }
 
 async function saveGlobalConfig() {
@@ -559,112 +582,26 @@ async function saveGlobalConfig() {
     ai_default_prompt:    document.getElementById('f-default-prompt').value
   };
   try {
-    const r  = await fetch('/ai-assistant/api/config', {
+    const r = await fetch('/ai-assistant/api/config', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)
     });
     const d = await r.json();
     updateGlobalBadge(payload.ai_assistant_enabled === 'true');
-    if (!d.exito) throw new Error(d.error);
-  } catch(e) { Swal.fire('Error', e.message, 'error'); }
+  } catch(e) { console.error(e); }
 }
 
 async function saveMasterPrompt() {
   await saveGlobalConfig();
-  Swal.fire({icon:'success',title:'¡Prompt Maestro Guardado!',text:'Las reglas de soporte y comportamiento global se han actualizado.',timer:1800,showConfirmButton:false});
+  Swal.fire({icon:'success',title:'¡Prompt Maestro Guardado!',timer:1500,showConfirmButton:false});
 }
 
 async function saveDefaultPrompt() {
   await saveGlobalConfig();
-  Swal.fire({icon:'success',title:'Guardado',text:'Prompt por defecto actualizado.',timer:1500,showConfirmButton:false});
+  Swal.fire({icon:'success',title:'¡Prompt por Defecto Guardado!',timer:1500,showConfirmButton:false});
 }
 
-
-// ── Cargar prompts ──────────────────────────────────────────
-async function loadPrompts() {
-  try {
-    const r = await fetch('/ai-assistant/api/prompts');
-    const d = await r.json();
-    prompts = d.prompts || [];
-    renderAulasList();
-  } catch(e) {
-    document.getElementById('aulas-list').innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation"></i><p>Error cargando prompts</p></div>`;
-  }
-}
-
-function renderAulasList() {
-  const list = document.getElementById('aulas-list');
-  const count = document.getElementById('aulas-count');
-  count.textContent = `${prompts.length} aula${prompts.length !== 1 ? 's' : ''} configurada${prompts.length !== 1 ? 's' : ''}`;
-
-  if (prompts.length === 0) {
-    list.innerHTML = `<div class="empty-state"><i class="fa-solid fa-chalkboard-user"></i><p>No hay aulas configuradas.<br>Crea el primer prompt.</p></div>`;
-    return;
-  }
-
-  list.innerHTML = prompts.map(p => `
-    <div class="aula-card ${p.aula_id == activeAulaId ? 'active' : ''}" onclick="selectAula('${p.aula_id}')">
-      <div class="aula-name">${escapeHtml(p.aula_nombre)}</div>
-      <div class="aula-id">space_id: ${p.aula_id}</div>
-      <span class="aula-badge ${p.activo ? 'active' : 'inactive'}">
-        <i class="fa-solid fa-circle" style="font-size:7px;"></i>
-        ${p.activo ? 'Activo' : 'Inactivo'}
-      </span>
-    </div>
-  `).join('');
-}
-
-// ── Seleccionar aula para editar ────────────────────────────
-function selectAula(aulaId) {
-  activeAulaId = aulaId;
-  isNewPrompt  = false;
-  const p = prompts.find(x => x.aula_id == aulaId);
-  if (!p) return;
-
-  document.getElementById('editor-aula-title').textContent    = p.aula_nombre;
-  document.getElementById('editor-aula-subtitle').textContent = `space_id: ${p.aula_id} • Editando prompt`;
-  document.getElementById('f-aula-id').value                  = p.aula_id;
-  document.getElementById('f-aula-nombre').value              = p.aula_nombre;
-  document.getElementById('f-prompt').value                   = p.prompt;
-  document.getElementById('toggle-prompt-active').checked     = p.activo;
-  // Mostrar toggle activo en header
-  document.getElementById('editor-actions').style.display = 'block';
-  // Mostrar botón eliminar en save-bar
-  document.getElementById('btn-delete').style.display = 'inline-flex';
-  // Actualizar hint de la save-bar
-  document.getElementById('save-hint-text').innerHTML =
-    `<i class="fa-solid fa-pencil" style="color:#ff9e9e;"></i> Editando: <strong>${escapeHtml(p.aula_nombre)}</strong>`;
-  updateCharCount();
-  renderAulasList();
-}
-
-// ── Nuevo prompt ────────────────────────────────────────────
-function nuevoPrompt() {
-  activeAulaId = null;
-  isNewPrompt  = true;
-  document.getElementById('editor-aula-title').textContent    = 'Nuevo Prompt de Aula';
-  document.getElementById('editor-aula-subtitle').textContent = 'Completa los campos y guarda';
-  document.getElementById('f-aula-id').value                  = '';
-  document.getElementById('f-aula-nombre').value              = '';
-  document.getElementById('f-prompt').value                   = '';
-  document.getElementById('toggle-prompt-active').checked     = true;
-  document.getElementById('editor-actions').style.display     = 'none';
-  // Ocultar botón eliminar y resetear hint
-  document.getElementById('btn-delete').style.display = 'none';
-  document.getElementById('save-hint-text').innerHTML =
-    '<i class="fa-solid fa-plus" style="color:#ff9e9e;"></i> Nuevo prompt — completa y guarda';
-
-  updateCharCount();
-  renderAulasList();
-  document.getElementById('f-aula-id').focus();
-}
-
-function resetForm() {
-  if (isNewPrompt) nuevoPrompt();
-  else if (activeAulaId) selectAula(activeAulaId);
-}
-
-// ── Guardar prompt ──────────────────────────────────────────
+// ── Guardar / Eliminar Prompt ──────────────────────────────────────────────
 async function savePrompt(e) {
   if (e && e.preventDefault) e.preventDefault();
   const btn = document.getElementById('btn-save');
@@ -679,7 +616,7 @@ async function savePrompt(e) {
   };
 
   try {
-    const r  = await fetch('/ai-assistant/api/prompts/save', {
+    const r = await fetch('/ai-assistant/api/prompts/save', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)
     });
@@ -687,10 +624,8 @@ async function savePrompt(e) {
     if (!d.exito) throw new Error(d.error);
 
     await loadPrompts();
-    activeAulaId = payload.aula_id;
-    isNewPrompt  = false;
-    selectAula(activeAulaId);
     Swal.fire({icon:'success',title:'¡Guardado!',text:d.mensaje,timer:1800,showConfirmButton:false});
+    switchTab('aulas');
   } catch(e) {
     Swal.fire('Error', e.message, 'error');
   } finally {
@@ -699,16 +634,12 @@ async function savePrompt(e) {
   }
 }
 
-// ── Eliminar prompt ─────────────────────────────────────────
 async function deletePrompt() {
+  if (!activeAulaId) return;
   const confirm = await Swal.fire({
     title:'¿Eliminar este prompt?',
-    text:'Esta acción no se puede deshacer.',
-    icon:'warning',
-    showCancelButton:true,
-    confirmButtonColor:'#ef4444',
-    confirmButtonText:'Sí, eliminar',
-    cancelButtonText:'Cancelar'
+    text:'Esta acción realizará un borrado lógico del prompt.',
+    icon:'warning', showCancelButton:true, confirmButtonColor:'#ef4444', confirmButtonText:'Sí, eliminar'
   });
   if (!confirm.isConfirmed) return;
 
@@ -718,31 +649,125 @@ async function deletePrompt() {
     if (!d.exito) throw new Error(d.error);
 
     await loadPrompts();
-    nuevoPrompt();
-    Swal.fire({icon:'success',title:'Eliminado',text:'El prompt fue eliminado.',timer:1500,showConfirmButton:false});
+    Swal.fire({icon:'success',title:'Eliminado',timer:1500,showConfirmButton:false});
+    switchTab('aulas');
+  } catch(e) { Swal.fire('Error', e.message, 'error'); }
+}
+
+// ── Subida de Excel ────────────────────────────────────────────────────────
+async function uploadExcelPrompts(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  Swal.fire({
+    title: 'Importando desde Excel...',
+    text: 'Cargando y procesando disparadores y prompts.',
+    allowOutsideClick: false,
+    didOpen: () => { Swal.showLoading(); }
+  });
+
+  try {
+    const res = await fetch('/ai-assistant/api/prompts/import', { method: 'POST', body: formData });
+    const data = await res.json();
+    Swal.close();
+
+    if (data.exito) {
+      Swal.fire({ icon: 'success', title: '¡Importación Exitosa!', text: data.mensaje, timer: 2500 });
+      loadPrompts();
+    } else {
+      Swal.fire('Error al importar', data.error || 'Problema procesando archivo.', 'error');
+    }
+  } catch (err) {
+    Swal.close();
+    Swal.fire('Error de conexión', err.message, 'error');
+  } finally { event.target.value = ''; }
+}
+
+// ── Simulador ─────────────────────────────────────────────────────────────
+async function lookupAula() {
+  const tel = document.getElementById('sim-telefono').value.trim();
+  if (!tel) return;
+  const resDiv = document.getElementById('sim-aula-result');
+  resDiv.classList.add('hidden');
+
+  try {
+    const r = await fetch(`/ai-assistant/api/aula-lookup?telefono=${encodeURIComponent(tel)}`);
+    const d = await r.json();
+    if (d.encontrado) {
+      document.getElementById('sim-aula-nombre').textContent = d.aula_nombre;
+      document.getElementById('sim-aula-usuario').textContent = d.nombre_usuario;
+      resDiv.classList.remove('hidden');
+    } else {
+      Swal.fire({icon:'info',title:'No encontrado',text:'No se encontró usuario para ese número.',timer:2000,showConfirmButton:false});
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function testIA() {
+  const telefono = document.getElementById('sim-telefono').value.trim();
+  const mensaje  = document.getElementById('sim-mensaje').value.trim();
+
+  if (!telefono || !mensaje) {
+    Swal.fire('Faltan datos', 'Completa el teléfono y el mensaje.', 'warning');
+    return;
+  }
+
+  document.getElementById('sim-result-box').classList.add('hidden');
+  document.getElementById('sim-spinner').classList.remove('hidden');
+
+  try {
+    const r = await fetch('/ai-assistant/api/test', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({telefono, mensaje})
+    });
+    const d = await r.json();
+
+    document.getElementById('sim-spinner').classList.add('hidden');
+
+    if (!d.exito) {
+      Swal.fire('Error IA', d.error || 'No se pudo generar respuesta.', 'error');
+      return;
+    }
+
+    document.getElementById('sim-response-text').textContent = d.respuesta;
+    const aula = d.aula_info || {};
+
+    if (aula.encontrado) {
+      document.getElementById('sim-result-aula-nombre').textContent = aula.aula_nombre;
+      document.getElementById('sim-result-aula-id').textContent = `ID: ${aula.space_id} • ${aula.nombre_usuario}`;
+    }
+
+    document.getElementById('sim-badge-real').classList.toggle('hidden', d.modo_simulacion);
+    const simBadge = document.getElementById('sim-badge-sim');
+    simBadge.classList.toggle('hidden', !d.modo_simulacion);
+    if (d.modo_simulacion && d.error_detail) {
+      simBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Simulado: ${escapeHtml(d.error_detail)}`;
+      simBadge.title = d.error_detail;
+    }
+
+    document.getElementById('sim-result-box').classList.remove('hidden');
+
   } catch(e) {
+    document.getElementById('sim-spinner').classList.add('hidden');
     Swal.fire('Error', e.message, 'error');
   }
 }
 
-// ── Toggle activo ───────────────────────────────────────────
-async function togglePromptActive() {
-  if (!activeAulaId) return;
-  const activo = document.getElementById('toggle-prompt-active').checked;
-  try {
-    await fetch(`/ai-assistant/api/prompts/${activeAulaId}/toggle`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({activo})
-    });
-    await loadPrompts();
-  } catch(e) { console.error(e); }
+function copiarRespuesta() {
+  const texto = document.getElementById('sim-response-text').textContent;
+  navigator.clipboard.writeText(texto).then(() => {
+    Swal.fire({icon:'success',title:'¡Copiado!',text:'Respuesta copiada.',timer:1500,showConfirmButton:false});
+  });
 }
 
-// ── Insertar variable en textarea ───────────────────────────
+// ── Utilidades ────────────────────────────────────────────────────────────
 function insertVar(variable) {
   const ta = document.getElementById('f-prompt');
   const start = ta.selectionStart;
-  const end   = ta.selectionEnd;
+  const end = ta.selectionEnd;
   ta.value = ta.value.slice(0, start) + variable + ta.value.slice(end);
   ta.selectionStart = ta.selectionEnd = start + variable.length;
   ta.focus();
@@ -754,82 +779,13 @@ function updateCharCount() {
   document.getElementById('char-count').textContent = len.toLocaleString();
 }
 
-// ── Simulador: buscar aula ──────────────────────────────────
-async function lookupAula() {
-  const tel = document.getElementById('sim-telefono').value.trim();
-  if (!tel) return;
-  const resDiv = document.getElementById('sim-aula-result');
-  resDiv.style.display = 'none';
-
-  try {
-    const r = await fetch(`/ai-assistant/api/aula-lookup?telefono=${encodeURIComponent(tel)}`);
-    const d = await r.json();
-    if (d.encontrado) {
-      document.getElementById('sim-aula-nombre').textContent  = d.aula_nombre;
-      document.getElementById('sim-aula-usuario').textContent = d.nombre_usuario;
-      resDiv.style.display = 'flex';
-    } else {
-      resDiv.style.display = 'none';
-      Swal.fire({icon:'info',title:'No encontrado',text:'No se encontró usuario para ese número.',timer:2000,showConfirmButton:false});
-    }
-  } catch(e) { console.error(e); }
+function escapeHtml(t) {
+  if (!t) return '';
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-
-function clearAulaInfo() {
-  document.getElementById('sim-aula-result').style.display = 'none';
-}
-
-// ── Simulador: probar IA ────────────────────────────────────
-async function testIA() {
-  const telefono = document.getElementById('sim-telefono').value.trim();
-  const mensaje  = document.getElementById('sim-mensaje').value.trim();
-
-  if (!telefono || !mensaje) {
-    Swal.fire('Faltan datos', 'Completa el número de teléfono y el mensaje.', 'warning');
-    return;
-  }
-
-  document.getElementById('sim-result-box').classList.remove('visible');
-  document.getElementById('sim-spinner').style.display = 'block';
-
-  try {
-    const r = await fetch('/ai-assistant/api/test', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({telefono, mensaje})
-    });
-    const d = await r.json();
-
-    document.getElementById('sim-spinner').style.display = 'none';
-
-    if (!d.exito) {
-      Swal.fire('Error IA', d.error || 'No se pudo generar respuesta.', 'error');
-      return;
-    }
-
-    // Mostrar resultado
-    document.getElementById('sim-response-text').textContent = d.respuesta;
-    const aula = d.aula_info || {};
-
-    if (aula.encontrado) {
-      document.getElementById('sim-result-aula').style.display = 'flex';
-      document.getElementById('sim-result-aula-nombre').textContent = aula.aula_nombre;
-      document.getElementById('sim-result-aula-id').textContent     = `ID: ${aula.space_id} • ${aula.nombre_usuario}`;
-    } else {
-      document.getElementById('sim-result-aula').style.display = 'none';
-    }
-
-    document.getElementById('sim-badge-real').style.display = d.modo_simulacion ? 'none' : 'inline-flex';
-    const simBadge = document.getElementById('sim-badge-sim');
-    simBadge.style.display = d.modo_simulacion ? 'inline-flex' : 'none';
-    if (d.modo_simulacion && d.error_detail) {
-      simBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Simulado: ${escapeHtml(d.error_detail)}`;
-      simBadge.title = d.error_detail;
-    }
-    document.getElementById('sim-result-box').classList.add('visible');
-
-
-  } catch(e) {
-    document.getElementById('sim-spinner').style.display = 'none';
+</script>
+{% endblock %}
+im-spinner').style.display = 'none';
     Swal.fire('Error', e.message, 'error');
   }
 }

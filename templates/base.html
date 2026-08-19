@@ -48,73 +48,75 @@
 </head>
 <body class="bg-slate-50 font-sans text-slate-800 flex h-screen overflow-hidden">
 
-    <!-- SIDEBAR (Barra lateral fija de alta estética) -->
-    <aside class="w-64 bg-sidebar text-slate-800 flex flex-col justify-between h-full shadow-2xl z-20 shrink-0">
+    <!-- SIDEBAR (Barra lateral fija de alta estética colapsable) -->
+    <aside id="main-sidebar" class="w-64 bg-sidebar text-slate-800 flex flex-col justify-between h-full shadow-2xl z-20 shrink-0 transition-all duration-300 relative overflow-hidden">
         <div>
-            <!-- LOGO / HEADER -->
-            <div class="px-5 py-4 border-b border-slate-300 flex items-center">
-                <div class="bg-white rounded-xl px-3 py-2 shadow-lg shadow-black/20">
+            <!-- LOGO / HEADER DE SIDEBAR -->
+            <div class="px-5 py-4 border-b border-slate-300 flex items-center justify-between">
+                <div class="bg-white rounded-xl px-3 py-2 shadow-lg shadow-black/20 sidebar-logo-container transition-all">
                     <img src="{{ url_for('static', filename='img/logo_latinpyme.png') }}"
                          alt="LatinPyme — Centro de Desarrollo Empresarial"
-                         class="h-10 w-auto object-contain">
+                         class="h-9 w-auto object-contain sidebar-logo">
                 </div>
+                <!-- Botón de colapsar barra lateral -->
+                <button onclick="toggleSidebar()" title="Ocultar/Mostrar Menú"
+                    class="w-8 h-8 rounded-lg bg-slate-200/80 hover:bg-brand-600 hover:text-white text-slate-700 flex items-center justify-center transition-all shadow-sm">
+                    <i class="fa-solid fa-chevron-left id-sidebar-icon transition-transform duration-300" id="sidebar-toggle-icon"></i>
+                </button>
             </div>
 
             <!-- NAVEGACIÓN -->
-            <nav class="p-4 space-y-1.5 flex-1">
-                <span class="px-3 text-[10px] uppercase font-bold text-slate-700 tracking-wider block mb-2">Módulos Principales</span>
+            <nav class="p-3 space-y-1.5 flex-1">
+                <span class="px-3 text-[10px] uppercase font-bold text-slate-700 tracking-wider block mb-2 sidebar-text">Módulos Principales</span>
                 
-                <a href="/dashboard" id="nav-dashboard" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/dashboard') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
-                    <i class="fa-solid fa-chart-line text-lg {% if request.path.startswith('/dashboard') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
-                    <span>Dashboard</span>
+                <a href="/dashboard" id="nav-dashboard" title="Dashboard" class="flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/dashboard') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
+                    <i class="fa-solid fa-chart-line text-lg shrink-0 {% if request.path.startswith('/dashboard') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
+                    <span class="sidebar-text whitespace-nowrap">Dashboard</span>
                 </a>
 
-                <a href="/datacenter" id="nav-datacenter" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/datacenter') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
-                    <i class="fa-solid fa-database text-lg {% if request.path.startswith('/datacenter') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
-                    <span>Data Center</span>
+                <a href="/datacenter" id="nav-datacenter" title="Data Center" class="flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/datacenter') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
+                    <i class="fa-solid fa-database text-lg shrink-0 {% if request.path.startswith('/datacenter') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
+                    <span class="sidebar-text whitespace-nowrap">Data Center</span>
                 </a>
 
-                <a href="/campaigns" id="nav-campaigns" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/campaigns') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
-                    <i class="fa-solid fa-paper-plane text-lg {% if request.path.startswith('/campaigns') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
-                    <span>Campañas WA</span>
+                <a href="/campaigns" id="nav-campaigns" title="Campañas WA" class="flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/campaigns') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
+                    <i class="fa-solid fa-paper-plane text-lg shrink-0 {% if request.path.startswith('/campaigns') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
+                    <span class="sidebar-text whitespace-nowrap">Campañas WA</span>
                 </a>
 
-                <a href="/conversations" id="nav-conversations" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/conversations') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
-                    <i class="fa-solid fa-comments text-lg {% if request.path.startswith('/conversations') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
-                    <span>Conversaciones</span>
+                <a href="/conversations" id="nav-conversations" title="Conversaciones" class="flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/conversations') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
+                    <i class="fa-solid fa-comments text-lg shrink-0 {% if request.path.startswith('/conversations') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
+                    <span class="sidebar-text whitespace-nowrap">Conversaciones</span>
                 </a>
 
-                <a href="/ai-assistant" id="nav-ai-assistant" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/ai-assistant') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
-                    <i class="fa-solid fa-robot text-lg {% if request.path.startswith('/ai-assistant') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
-                    <span>Asistente IA</span>
+                <a href="/ai-assistant" id="nav-ai-assistant" title="Asistente IA" class="flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/ai-assistant') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
+                    <i class="fa-solid fa-robot text-lg shrink-0 {% if request.path.startswith('/ai-assistant') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
+                    <span class="sidebar-text whitespace-nowrap">Asistente IA</span>
                 </a>
 
+                <span class="px-3 text-[10px] uppercase font-bold text-slate-700 tracking-wider block pt-4 pb-2 sidebar-text">Administración</span>
 
-
-
-                <span class="px-3 text-[10px] uppercase font-bold text-slate-700 tracking-wider block pt-4 pb-2">Administración</span>
-
-                <a href="/settings" id="nav-settings" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/settings') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
-                    <i class="fa-solid fa-sliders text-lg {% if request.path.startswith('/settings') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
-                    <span>Configuración</span>
+                <a href="/settings" id="nav-settings" title="Configuración" class="flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/settings') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
+                    <i class="fa-solid fa-sliders text-lg shrink-0 {% if request.path.startswith('/settings') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
+                    <span class="sidebar-text whitespace-nowrap">Configuración</span>
                 </a>
 
                 {% if current_user.is_authenticated and current_user.role == 'admin' %}
-                <a href="/admin/users" id="nav-admin-users" class="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/admin') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
-                    <i class="fa-solid fa-users-gear text-lg {% if request.path.startswith('/admin') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
-                    <span>Usuarios</span>
+                <a href="/admin/users" id="nav-admin-users" title="Usuarios" class="flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/admin') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
+                    <i class="fa-solid fa-users-gear text-lg shrink-0 {% if request.path.startswith('/admin') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
+                    <span class="sidebar-text whitespace-nowrap">Usuarios</span>
                 </a>
                 {% endif %}
             </nav>
         </div>
 
         <!-- FOOTER SIDEBAR -->
-        <div class="p-4 border-t border-slate-300 text-center">
+        <div class="p-3 border-t border-slate-300 text-center">
             <div class="flex items-center gap-2 justify-center mb-1">
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span class="text-xs font-semibold text-slate-700">Modo IA Activo</span>
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                <span class="text-xs font-semibold text-slate-700 sidebar-text whitespace-nowrap">Modo IA Activo</span>
             </div>
-            <span class="text-[9px] text-slate-600 block">v1.2 Premium LMS</span>
+            <span class="text-[9px] text-slate-600 block sidebar-text">v1.2 Premium LMS</span>
         </div>
     </aside>
 
@@ -122,8 +124,14 @@
     <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
         
         <!-- HEADER SUPERIOR -->
-        <header class="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between h-16 shadow-sm z-10 shrink-0">
+        <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between h-16 shadow-sm z-10 shrink-0">
             <div class="flex items-center gap-4">
+                <!-- Botón alternativo de desplegar barra si está oculta -->
+                <button onclick="toggleSidebar()" title="Ocultar/Mostrar Menú Lateral"
+                    class="w-9 h-9 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-all">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+
                 <h1 class="text-xl font-bold text-slate-800">
                     {% block header_title %}Escuela LatinPyme{% endblock %}
                 </h1>
@@ -156,7 +164,44 @@
     </div>
 
     <!-- SCRIPTS GLOBALES -->
+    <script>
+        // Función para ocultar/desplegar la barra lateral
+        function toggleSidebar() {
+            const sidebar = document.getElementById('main-sidebar');
+            const icon = document.getElementById('sidebar-toggle-icon');
+            const isCollapsed = sidebar.classList.contains('w-16');
+
+            if (isCollapsed) {
+                sidebar.classList.remove('w-16');
+                sidebar.classList.add('w-64');
+                document.querySelectorAll('.sidebar-text').forEach(el => el.classList.remove('hidden'));
+                if (icon) icon.style.transform = 'rotate(0deg)';
+                localStorage.setItem('sidebar_collapsed', 'false');
+            } else {
+                sidebar.classList.remove('w-64');
+                sidebar.classList.add('w-16');
+                document.querySelectorAll('.sidebar-text').forEach(el => el.classList.add('hidden'));
+                if (icon) icon.style.transform = 'rotate(180deg)';
+                localStorage.setItem('sidebar_collapsed', 'true');
+            }
+        }
+
+        // Cargar estado guardado al iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('sidebar_collapsed') === 'true') {
+                const sidebar = document.getElementById('main-sidebar');
+                const icon = document.getElementById('sidebar-toggle-icon');
+                if (sidebar) {
+                    sidebar.classList.remove('w-64');
+                    sidebar.classList.add('w-16');
+                    document.querySelectorAll('.sidebar-text').forEach(el => el.classList.add('hidden'));
+                    if (icon) icon.style.transform = 'rotate(180deg)';
+                }
+            }
+        });
+    </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_scripts %}{% endblock %}
+
 </body>
 </html>
