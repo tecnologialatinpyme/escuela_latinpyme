@@ -806,18 +806,6 @@ function updateCharCount() {
   document.getElementById('char-count').textContent = len.toLocaleString();
 }
 
-    document.getElementById('sim-spinner').style.display = 'none';
-    Swal.fire('Error', e.message, 'error');
-  }
-}
-
-function copiarRespuesta() {
-  const texto = document.getElementById('sim-response-text').textContent;
-  navigator.clipboard.writeText(texto).then(() => {
-    Swal.fire({icon:'success',title:'¡Copiado!',text:'Respuesta copiada al portapapeles.',timer:1500,showConfirmButton:false});
-  });
-}
-
 async function uploadExcelPrompts(event) {
   const file = event.target.files[0];
   if (!file) return;
