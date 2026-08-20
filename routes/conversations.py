@@ -38,8 +38,11 @@ except Exception as e:
 
 
 
+from datetime import datetime, timezone
+
 def _now_ts():
-    return datetime.now().strftime("%H:%M")
+    return datetime.now(timezone.utc).isoformat()
+
 
 
 # ──────────────────────────────────────────────

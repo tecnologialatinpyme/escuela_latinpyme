@@ -762,6 +762,62 @@ async function resolveHumanRequired(phone) {
 }
 
 // ════════════════════════════════════════════════
+// FORMATEADOR DE HORA Y FECHA (Estilo WhatsApp)
+// ════════════════════════════════════════════════
+function formatWhatsAppTimestamp(rawTs, mode = 'list') {
+    if (!rawTs) return '';
+    const cleanStr = String(rawTs).trim();
+
+    // Si ya viene como hora simple "09:31" o "14:55", devolver directo
+    if (/^\d{1,2}:\d{2}$/.test(cleanStr)) {
+        return cleanStr;
+    }
+
+    try {
+        const date = new Date(cleanStr);
+        if (isNaN(date.getTime())) {
+            return cleanStr.length > 20 ? cleanStr.substring(11, 16) : cleanStr;
+        }
+
+        const now = new Date();
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const timeStr = `${hours}:${minutes}`;
+
+        if (mode === 'bubble') {
+            return timeStr; // En globos de mensajes siempre solo la hora "14:55"
+        }
+
+        // Lógica estilo WhatsApp para la lista lateral de chats
+        const isToday = date.toDateString() === now.toDateString();
+
+        const yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        const isYesterday = date.toDateString() === yesterday.toDateString();
+
+        const diffTime = Math.abs(now - date);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (isToday) {
+            return timeStr; // "14:55"
+        } else if (isYesterday) {
+            return 'Ayer';
+        } else if (diffDays <= 7) {
+            const days = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+            return days[date.getDay()];
+        } else {
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+    } catch (e) {
+        return cleanStr;
+    }
+}
+
+// ════════════════════════════════════════════════
 // RENDER — Lista de chats
 // ════════════════════════════════════════════════
 function renderChatList(chats) {
@@ -795,6 +851,8 @@ function renderChatList(chats) {
         if (isHuman) borderStyle = 'border-left: 4px solid #f43f5e; background: #fff5f5;';
         if (isActive) borderStyle = 'border-left: 4px solid #6366f1; background: #ede9fe;';
 
+        const formattedTime = formatWhatsAppTimestamp(chat.last_ts, 'list');
+
         return `
         <div class="chat-item ${isActive ? 'active' : ''}"
              style="${borderStyle}"
@@ -813,7 +871,7 @@ function renderChatList(chats) {
             </div>
             <div class="chat-item-meta">
                 <div class="flex items-center gap-1">
-                    <span class="chat-item-ts">${chat.last_ts || ''}</span>
+                    <span class="chat-item-ts">${formattedTime}</span>
                     <button class="btn-delete-chat" onclick="event.stopPropagation(); confirmDelete('${chat.phone}', '${escapeHtml(chat.name)}')" title="Eliminar conversación">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
@@ -877,26 +935,54 @@ function resetDrawerData(phone, name, avatar) {
 
 
 // ════════════════════════════════════════════════
-// RENDER — Mensajes del chat activo
+// RENDER — Mensajes del chat activo (Divisores WhatsApp)
 // ════════════════════════════════════════════════
 function renderMessages(messages, activeChat) {
     const container = document.getElementById('chat-messages');
     const wasAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 60;
 
-    let html = `<div class="date-sep">Hoy</div>`;
+    let html = '';
+    let lastDateStr = '';
 
     if (activeChat && activeChat.human_required) {
         html += `
-            <div class="my-3 py-2 px-4 bg-amber-100/90 text-amber-950 text-xs font-semibold rounded-2xl border border-amber-300/80 text-center flex items-center justify-center gap-2 shadow-sm self-center max-w-md animate-fadeIn">
+            <div class="my-3 py-2 px-4 bg-amber-100/90 text-amber-950 text-xs font-semibold rounded-2xl border border-amber-300/80 text-center flex items-center justify-center gap-2 shadow-sm self-center max-w-md animate-fadeIn font-['Outfit']">
                 <i class="fa-solid fa-headset text-amber-700 text-sm"></i>
                 <span>Conversación transferida a Asesor Humano (IA Pausada)</span>
             </div>
         `;
     }
 
-    html += messages.map(m => {
+    messages.forEach(m => {
         const isHumanTrigger = m.disparador && m.disparador.includes('asesor_humano');
-        return `
+        const timeStr = formatWhatsAppTimestamp(m.ts, 'bubble');
+
+        // Agrupar divisores de fecha estilo WhatsApp (Hoy, Ayer, Fecha)
+        let msgDateStr = 'Hoy';
+        if (m.ts && String(m.ts).includes('T')) {
+            try {
+                const d = new Date(m.ts);
+                const now = new Date();
+                if (d.toDateString() === now.toDateString()) {
+                    msgDateStr = 'Hoy';
+                } else {
+                    const yesterday = new Date(now);
+                    yesterday.setDate(now.getDate() - 1);
+                    if (d.toDateString() === yesterday.toDateString()) {
+                        msgDateStr = 'Ayer';
+                    } else {
+                        msgDateStr = d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+                    }
+                }
+            } catch(e){}
+        }
+
+        if (msgDateStr !== lastDateStr) {
+            html += `<div class="date-sep">${msgDateStr}</div>`;
+            lastDateStr = msgDateStr;
+        }
+
+        html += `
             ${isHumanTrigger ? `
                 <div class="my-2 py-1.5 px-3 bg-rose-50 text-rose-800 text-[11px] font-semibold rounded-xl border border-rose-200 text-center flex items-center justify-center gap-1.5 self-center max-w-sm font-['Outfit']">
                     <i class="fa-solid fa-bell text-rose-600"></i>
@@ -906,12 +992,12 @@ function renderMessages(messages, activeChat) {
             <div class="msg-bubble ${m.direction === 'in' ? 'msg-in' : 'msg-out'}">
                 ${escapeHtml(m.body)}
                 <span class="msg-ts">
-                    ${m.ts}
+                    ${timeStr}
                     ${m.direction === 'out' ? '<span class="msg-ticks">✓✓</span>' : ''}
                 </span>
             </div>
         `;
-    }).join('');
+    });
 
     container.innerHTML = html;
 
