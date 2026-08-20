@@ -3,66 +3,6 @@
 {% block title %}Usuarios — Escuela LatinPyme{% endblock %}
 {% block header_title %}<i class="fa-solid fa-users-gear mr-2 text-brand-500"></i> Gestión de Usuarios{% endblock %}
 
-{% block extra_head %}
-<style>
-    /* ── Badges de rol ── */
-    .badge-admin  { background: rgba(227,6,19,0.12); color: #E30613; border: 1px solid rgba(227,6,19,0.25); }
-    .badge-asesor { background: rgba(59,130,246,0.12); color: #3b82f6; border: 1px solid rgba(59,130,246,0.25); }
-    .badge-active   { background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25); }
-    .badge-inactive { background: rgba(100,116,139,0.12); color: #94a3b8; border: 1px solid rgba(100,116,139,0.2); }
-
-    /* ── Modal ── */
-    .modal-overlay {
-        position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-        backdrop-filter: blur(4px); z-index: 50;
-        display: flex; align-items: center; justify-content: center;
-        opacity: 0; pointer-events: none; transition: opacity 0.2s;
-    }
-    .modal-overlay.open { opacity: 1; pointer-events: all; }
-    .modal-box {
-        background: white; border-radius: 16px; padding: 32px;
-        width: 100%; max-width: 440px; box-shadow: 0 24px 80px rgba(0,0,0,0.25);
-        transform: scale(0.95); transition: transform 0.2s;
-    }
-    .modal-overlay.open .modal-box { transform: scale(1); }
-    .modal-title { font-size: 1.1rem; font-weight: 700; color: #1e293b; margin-bottom: 20px; }
-    .modal-input {
-        width: 100%; border: 1px solid #e2e8f0; border-radius: 8px;
-        padding: 10px 14px; font-size: 0.9rem; color: #1e293b;
-        margin-bottom: 12px; outline: none; transition: border-color 0.2s;
-    }
-    .modal-input:focus { border-color: #E30613; box-shadow: 0 0 0 3px rgba(227,6,19,0.1); }
-    .modal-select {
-        width: 100%; border: 1px solid #e2e8f0; border-radius: 8px;
-        padding: 10px 14px; font-size: 0.9rem; color: #1e293b;
-        margin-bottom: 12px; outline: none; background: white;
-    }
-    .modal-label { font-size: 0.75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px; }
-    .modal-btn-row { display: flex; gap: 10px; margin-top: 8px; justify-content: flex-end; }
-    .btn-cancel { padding: 10px 20px; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #64748b; font-size: 0.9rem; cursor: pointer; transition: background 0.2s; }
-    .btn-cancel:hover { background: #f8fafc; }
-    .btn-save { padding: 10px 20px; border-radius: 8px; border: none; background: #E30613; color: white; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: background 0.2s, transform 0.15s; }
-    .btn-save:hover { background: #c9040f; transform: translateY(-1px); }
-
-    /* ── Tabla ── */
-    .table-row-hover:hover { background: #f8fafc; }
-    .action-btn { padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 5px; }
-    .action-btn:hover { transform: translateY(-1px); }
-    .btn-edit  { background: rgba(59,130,246,0.1); color: #3b82f6; }
-    .btn-edit:hover { background: rgba(59,130,246,0.2); }
-    .btn-deact { background: rgba(100,116,139,0.1); color: #64748b; }
-    .btn-deact:hover { background: rgba(100,116,139,0.2); }
-    .btn-activ { background: rgba(16,185,129,0.1); color: #10b981; }
-    .btn-activ:hover { background: rgba(16,185,129,0.2); }
-    .btn-pw    { background: rgba(245,158,11,0.1); color: #f59e0b; }
-    .btn-pw:hover { background: rgba(245,158,11,0.2); }
-
-    /* ── Card nueva ── */
-    .btn-new-user { display: inline-flex; align-items: center; gap: 8px; background: #E30613; color: white; padding: 10px 20px; border-radius: 10px; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; transition: all 0.15s; box-shadow: 0 4px 12px rgba(227,6,19,0.3); }
-    .btn-new-user:hover { background: #c9040f; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(227,6,19,0.4); }
-</style>
-{% endblock %}
-
 {% block content %}
 
 <!-- Flash messages -->
@@ -83,10 +23,10 @@
         <p class="text-slate-500 text-sm">{{ users|length }} usuario{{ 's' if users|length != 1 }} registrado{{ 's' if users|length != 1 }}</p>
     </div>
     <div class="flex items-center gap-3">
-        <a href="{{ url_for('admin.export_database') }}" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold text-xs shadow-md transition">
+        <a href="{{ url_for('admin.export_database') }}" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold text-xs shadow-md hover:shadow-lg transition">
             <i class="fa-solid fa-file-export"></i> Exportar BD (Migración)
         </a>
-        <button class="btn-new-user" onclick="openModal('modal-create')">
+        <button onclick="openModal('modal-create')" class="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2.5 rounded-xl font-semibold text-xs shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
             <i class="fa-solid fa-user-plus"></i> Nuevo Usuario
         </button>
     </div>
@@ -95,164 +35,200 @@
 
 <!-- Tabla de usuarios -->
 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-    <table class="w-full text-sm">
-        <thead>
-            <tr class="border-b border-slate-100 bg-slate-50">
-                <th class="text-left px-6 py-4 font-semibold text-slate-600 text-xs uppercase tracking-wider">Usuario</th>
-                <th class="text-left px-6 py-4 font-semibold text-slate-600 text-xs uppercase tracking-wider">Email</th>
-                <th class="text-left px-6 py-4 font-semibold text-slate-600 text-xs uppercase tracking-wider">Rol</th>
-                <th class="text-left px-6 py-4 font-semibold text-slate-600 text-xs uppercase tracking-wider">Estado</th>
-                <th class="text-left px-6 py-4 font-semibold text-slate-600 text-xs uppercase tracking-wider">Último acceso</th>
-                <th class="text-right px-6 py-4 font-semibold text-slate-600 text-xs uppercase tracking-wider">Acciones</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-            {% for u in users %}
-            <tr class="table-row-hover transition-colors">
-                <!-- Nombre + username -->
-                <td class="px-6 py-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center font-bold text-brand-600 text-sm shrink-0">
-                            {{ u.full_name[:2].upper() }}
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-slate-100 bg-slate-50">
+                    <th class="text-left px-6 py-4 font-semibold text-slate-600 text-xs uppercase tracking-wider">Usuario</th>
+                    <th class="text-left px-6 py-4 font-semibold text-slate-600 text-xs uppercase tracking-wider">Email</th>
+                    <th class="text-left px-6 py-4 font-semibold text-slate-600 text-xs uppercase tracking-wider">Rol</th>
+                    <th class="text-left px-6 py-4 font-semibold text-slate-600 text-xs uppercase tracking-wider">Estado</th>
+                    <th class="text-left px-6 py-4 font-semibold text-slate-600 text-xs uppercase tracking-wider">Último acceso</th>
+                    <th class="text-right px-6 py-4 font-semibold text-slate-600 text-xs uppercase tracking-wider">Acciones</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for u in users %}
+                <tr class="hover:bg-slate-50/80 transition-colors">
+                    <!-- Nombre + username -->
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-brand-50 flex items-center justify-center font-bold text-brand-500 text-sm shrink-0 border border-brand-200">
+                                {{ u.full_name[:2].upper() }}
+                            </div>
+                            <div>
+                                <div class="font-semibold text-slate-800">{{ u.full_name }}</div>
+                                <div class="text-xs text-slate-400">@{{ u.username }}</div>
+                            </div>
                         </div>
-                        <div>
-                            <div class="font-semibold text-slate-800">{{ u.full_name }}</div>
-                            <div class="text-xs text-slate-400">@{{ u.username }}</div>
-                        </div>
-                    </div>
-                </td>
-                <!-- Email -->
-                <td class="px-6 py-4 text-slate-600">{{ u.email }}</td>
-                <!-- Rol -->
-                <td class="px-6 py-4">
-                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold badge-{{ u.role }}">
-                        <i class="fa-solid {% if u.role == 'admin' %}fa-crown{% else %}fa-headset{% endif %} mr-1"></i>
-                        {{ u.role|capitalize }}
-                    </span>
-                </td>
-                <!-- Estado -->
-                <td class="px-6 py-4">
-                    <span class="px-2.5 py-1 rounded-full text-xs font-semibold badge-{{ 'active' if u.is_active else 'inactive' }}">
-                        <i class="fa-solid fa-circle text-[8px] mr-1"></i>
-                        {{ 'Activo' if u.is_active else 'Inactivo' }}
-                    </span>
-                </td>
-                <!-- Último acceso -->
-                <td class="px-6 py-4 text-slate-500 text-xs">
-                    {% if u.last_login %}
-                        {% set ll = u.last_login %}
-                        {% if ll is string %}
-                            {{ ll[:16] | replace('T', ' ') }}
+                    </td>
+                    <!-- Email -->
+                    <td class="px-6 py-4 text-slate-600">{{ u.email }}</td>
+                    <!-- Rol -->
+                    <td class="px-6 py-4">
+                        {% if u.role == 'admin' %}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-brand-50 text-brand-500 border border-brand-200">
+                            <i class="fa-solid fa-crown mr-1"></i> Admin
+                        </span>
                         {% else %}
-                            {{ ll.strftime('%d/%m/%Y %H:%M') }}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-200">
+                            <i class="fa-solid fa-headset mr-1"></i> Asesor
+                        </span>
                         {% endif %}
-                    {% else %}
-                        <span class="text-slate-300">Nunca</span>
-                    {% endif %}
-                </td>
-                <!-- Acciones -->
-                <td class="px-6 py-4">
-                    <div class="flex items-center gap-2 justify-end flex-wrap">
-                        <!-- Editar -->
-                        <button class="action-btn btn-edit"
-                            onclick="openEdit({{ u.id }}, '{{ u.full_name }}', '{{ u.email }}', '{{ u.role }}')">
-                            <i class="fa-solid fa-pen-to-square"></i> Editar
-                        </button>
-                        <!-- Activar / Desactivar -->
-                        <form method="POST" action="{{ url_for('admin.toggle_user', user_id=u.id) }}" style="display:inline">
-                            <button type="submit" class="action-btn {{ 'btn-deact' if u.is_active else 'btn-activ' }}"
-                                {% if u.id == current_user.id %}disabled title="No puedes desactivarte a ti mismo"{% endif %}>
-                                <i class="fa-solid {{ 'fa-ban' if u.is_active else 'fa-check' }}"></i>
-                                {{ 'Desactivar' if u.is_active else 'Activar' }}
+                    </td>
+                    <!-- Estado -->
+                    <td class="px-6 py-4">
+                        {% if u.is_active %}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200">
+                            <i class="fa-solid fa-circle text-[8px] mr-1"></i> Activo
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                            <i class="fa-solid fa-circle text-[8px] mr-1"></i> Inactivo
+                        </span>
+                        {% endif %}
+                    </td>
+                    <!-- Último acceso -->
+                    <td class="px-6 py-4 text-slate-500 text-xs whitespace-nowrap">
+                        {% if u.last_login %}
+                            {% set ll = u.last_login %}
+                            {% if ll is string %}
+                                {{ ll[:16] | replace('T', ' ') }}
+                            {% else %}
+                                {{ ll.strftime('%d/%m/%Y %H:%M') }}
+                            {% endif %}
+                        {% else %}
+                            <span class="text-slate-300">Nunca</span>
+                        {% endif %}
+                    </td>
+                    <!-- Acciones -->
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-2 justify-end flex-wrap">
+                            <!-- Editar -->
+                            <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-600 transition transform hover:-translate-y-0.5"
+                                onclick="openEdit({{ u.id | tojson }}, {{ u.full_name | tojson }}, {{ u.email | tojson }}, {{ u.role | tojson }})">
+                                <i class="fa-solid fa-pen-to-square"></i> Editar
                             </button>
-                        </form>
-                        <!-- Resetear contraseña -->
-                        <button class="action-btn btn-pw" onclick="openResetPw({{ u.id }}, '{{ u.username }}')">
-                            <i class="fa-solid fa-key"></i> Contraseña
-                        </button>
-                    </div>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="6" class="px-6 py-12 text-center text-slate-400">
-                    <i class="fa-solid fa-users text-3xl mb-3 block opacity-30"></i>
-                    No hay usuarios registrados.
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                            <!-- Activar / Desactivar -->
+                            <form method="POST" action="{{ url_for('admin.toggle_user', user_id=u.id) }}" class="inline-block">
+                                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition transform hover:-translate-y-0.5 {% if u.is_active %} bg-slate-100 hover:bg-slate-200 text-slate-600 {% else %} bg-emerald-50 hover:bg-emerald-100 text-emerald-600 {% endif %}"
+                                    {% if u.id == current_user.id %}disabled title="No puedes desactivarte a ti mismo"{% endif %}>
+                                    <i class="fa-solid {{ 'fa-ban' if u.is_active else 'fa-check' }}"></i>
+                                    {{ 'Desactivar' if u.is_active else 'Activar' }}
+                                </button>
+                            </form>
+                            <!-- Resetear contraseña -->
+                            <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-600 transition transform hover:-translate-y-0.5" onclick="openResetPw({{ u.id | tojson }}, {{ u.username | tojson }})">
+                                <i class="fa-solid fa-key"></i> Contraseña
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-slate-400">
+                        <i class="fa-solid fa-users text-3xl mb-3 block opacity-30"></i>
+                        No hay usuarios registrados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 
 <!-- ══ Modal: Crear usuario ══ -->
-<div class="modal-overlay" id="modal-create">
-    <div class="modal-box">
-        <div class="modal-title"><i class="fa-solid fa-user-plus text-brand-500 mr-2"></i>Nuevo Usuario</div>
-        <form method="POST" action="{{ url_for('admin.create_user') }}">
-            <label class="modal-label">Nombre completo</label>
-            <input class="modal-input" type="text" name="full_name" placeholder="Ej: Ana Torres" required>
+<div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-200" id="modal-create">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl transform scale-95 transition-transform duration-200" id="modal-create-box">
+        <div class="text-lg font-bold text-slate-800 mb-5 flex items-center">
+            <i class="fa-solid fa-user-plus text-brand-500 mr-2"></i>Nuevo Usuario
+        </div>
+        <form method="POST" action="{{ url_for('admin.create_user') }}" class="space-y-4">
+            <div>
+                <label for="create-full-name" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nombre completo</label>
+                <input id="create-full-name" class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none transition" type="text" name="full_name" placeholder="Ej: Ana Torres" required>
+            </div>
 
-            <label class="modal-label">Nombre de usuario</label>
-            <input class="modal-input" type="text" name="username" placeholder="ana_torres" required>
+            <div>
+                <label for="create-username" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nombre de usuario</label>
+                <input id="create-username" class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none transition" type="text" name="username" placeholder="ana_torres" required>
+            </div>
 
-            <label class="modal-label">Email</label>
-            <input class="modal-input" type="email" name="email" placeholder="ana@latinpyme.com" required>
+            <div>
+                <label for="create-email" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Email</label>
+                <input id="create-email" class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none transition" type="email" name="email" placeholder="ana@latinpyme.com" required>
+            </div>
 
-            <label class="modal-label">Contraseña inicial</label>
-            <input class="modal-input" type="password" name="password" placeholder="Mínimo 6 caracteres" required minlength="6">
+            <div>
+                <label for="create-password" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Contraseña inicial</label>
+                <input id="create-password" class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none transition" type="password" name="password" placeholder="Mínimo 6 caracteres" required minlength="6">
+            </div>
 
-            <label class="modal-label">Rol</label>
-            <select class="modal-select" name="role">
-                <option value="asesor">Asesor</option>
-                <option value="admin">Administrador</option>
-            </select>
+            <div>
+                <label for="create-role" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Rol</label>
+                <select id="create-role" class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none bg-white transition" name="role">
+                    <option value="asesor">Asesor</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
 
-            <div class="modal-btn-row">
-                <button type="button" class="btn-cancel" onclick="closeModal('modal-create')">Cancelar</button>
-                <button type="submit" class="btn-save"><i class="fa-solid fa-check mr-1"></i>Crear</button>
+            <div class="flex items-center justify-end gap-3 pt-3">
+                <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium transition" onclick="closeModal('modal-create')">Cancelar</button>
+                <button type="submit" class="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold shadow-md transition transform hover:-translate-y-0.5"><i class="fa-solid fa-check mr-1.5"></i>Crear</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- ══ Modal: Editar usuario ══ -->
-<div class="modal-overlay" id="modal-edit">
-    <div class="modal-box">
-        <div class="modal-title"><i class="fa-solid fa-pen-to-square text-blue-500 mr-2"></i>Editar Usuario</div>
-        <form method="POST" id="form-edit" action="">
-            <label class="modal-label">Nombre completo</label>
-            <input class="modal-input" type="text" name="full_name" id="edit-full-name" required>
+<div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-200" id="modal-edit">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl transform scale-95 transition-transform duration-200" id="modal-edit-box">
+        <div class="text-lg font-bold text-slate-800 mb-5 flex items-center">
+            <i class="fa-solid fa-pen-to-square text-blue-500 mr-2"></i>Editar Usuario
+        </div>
+        <form method="POST" id="form-edit" action="" class="space-y-4">
+            <div>
+                <label for="edit-full-name" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nombre completo</label>
+                <input class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none transition" type="text" name="full_name" id="edit-full-name" required>
+            </div>
 
-            <label class="modal-label">Email</label>
-            <input class="modal-input" type="email" name="email" id="edit-email" required>
+            <div>
+                <label for="edit-email" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Email</label>
+                <input class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none transition" type="email" name="email" id="edit-email" required>
+            </div>
 
-            <label class="modal-label">Rol</label>
-            <select class="modal-select" name="role" id="edit-role">
-                <option value="asesor">Asesor</option>
-                <option value="admin">Administrador</option>
-            </select>
+            <div>
+                <label for="edit-role" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Rol</label>
+                <select class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none bg-white transition" name="role" id="edit-role">
+                    <option value="asesor">Asesor</option>
+                    <option value="admin">Administrador</option>
+                </select>
+            </div>
 
-            <div class="modal-btn-row">
-                <button type="button" class="btn-cancel" onclick="closeModal('modal-edit')">Cancelar</button>
-                <button type="submit" class="btn-save"><i class="fa-solid fa-floppy-disk mr-1"></i>Guardar</button>
+            <div class="flex items-center justify-end gap-3 pt-3">
+                <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium transition" onclick="closeModal('modal-edit')">Cancelar</button>
+                <button type="submit" class="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold shadow-md transition transform hover:-translate-y-0.5"><i class="fa-solid fa-floppy-disk mr-1.5"></i>Guardar</button>
             </div>
         </form>
     </div>
 </div>
 
 <!-- ══ Modal: Resetear contraseña ══ -->
-<div class="modal-overlay" id="modal-reset-pw">
-    <div class="modal-box">
-        <div class="modal-title"><i class="fa-solid fa-key text-amber-500 mr-2"></i>Resetear Contraseña</div>
-        <p class="text-sm text-slate-500 mb-4">Establecer nueva contraseña para <strong id="reset-username" class="text-slate-700"></strong></p>
-        <form method="POST" id="form-reset-pw" action="">
-            <label class="modal-label">Nueva contraseña</label>
-            <input class="modal-input" type="password" name="new_password" placeholder="Mínimo 6 caracteres" required minlength="6">
-            <div class="modal-btn-row">
-                <button type="button" class="btn-cancel" onclick="closeModal('modal-reset-pw')">Cancelar</button>
-                <button type="submit" class="btn-save"><i class="fa-solid fa-check mr-1"></i>Guardar</button>
+<div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-200" id="modal-reset-pw">
+    <div class="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl transform scale-95 transition-transform duration-200" id="modal-reset-pw-box">
+        <div class="text-lg font-bold text-slate-800 mb-2 flex items-center">
+            <i class="fa-solid fa-key text-amber-500 mr-2"></i>Resetear Contraseña
+        </div>
+        <p class="text-sm text-slate-500 mb-5">Establecer nueva contraseña para <strong id="reset-username" class="text-slate-800"></strong></p>
+        <form method="POST" id="form-reset-pw" action="" class="space-y-4">
+            <div>
+                <label for="reset-password" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nueva contraseña</label>
+                <input id="reset-password" class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 outline-none transition" type="password" name="new_password" placeholder="Mínimo 6 caracteres" required minlength="6">
+            </div>
+            <div class="flex items-center justify-end gap-3 pt-3">
+                <button type="button" class="px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-sm font-medium transition" onclick="closeModal('modal-reset-pw')">Cancelar</button>
+                <button type="submit" class="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold shadow-md transition transform hover:-translate-y-0.5"><i class="fa-solid fa-check mr-1.5"></i>Guardar</button>
             </div>
         </form>
     </div>
@@ -262,34 +238,63 @@
 
 {% block extra_scripts %}
 <script>
-    // ── Modal helpers ──
+    // ── Modal helpers con Tailwind ──
     function openModal(id) {
-        document.getElementById(id).classList.add('open');
+        const overlay = document.getElementById(id);
+        if (!overlay) return;
+        overlay.classList.remove('opacity-0', 'pointer-events-none');
+        overlay.classList.add('opacity-100', 'pointer-events-auto');
+        const box = overlay.querySelector('div');
+        if (box) {
+            box.classList.remove('scale-95');
+            box.classList.add('scale-100');
+        }
     }
+
     function closeModal(id) {
-        document.getElementById(id).classList.remove('open');
+        const overlay = document.getElementById(id);
+        if (!overlay) return;
+        overlay.classList.remove('opacity-100', 'pointer-events-auto');
+        overlay.classList.add('opacity-0', 'pointer-events-none');
+        const box = overlay.querySelector('div');
+        if (box) {
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+        }
     }
-    // Cerrar al hacer click fuera
-    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+
+    // Cerrar al hacer click fuera o al presionar Escape
+    document.querySelectorAll('[id^="modal-"]').forEach(overlay => {
         overlay.addEventListener('click', function(e) {
             if (e.target === this) closeModal(this.id);
         });
     });
 
-    // ── Abrir modal editar con datos ──
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('[id^="modal-"]').forEach(overlay => {
+                if (overlay.classList.contains('opacity-100')) {
+                    closeModal(overlay.id);
+                }
+            });
+        }
+    });
+
+    // ── Abrir modal editar con datos de manera segura ──
     function openEdit(userId, fullName, email, role) {
-        document.getElementById('edit-full-name').value = fullName;
-        document.getElementById('edit-email').value = email;
-        document.getElementById('edit-role').value = role;
+        document.getElementById('edit-full-name').value = fullName || '';
+        document.getElementById('edit-email').value = email || '';
+        document.getElementById('edit-role').value = role || 'asesor';
         document.getElementById('form-edit').action = `/admin/users/${userId}/edit`;
         openModal('modal-edit');
     }
 
     // ── Abrir modal resetear contraseña ──
     function openResetPw(userId, username) {
-        document.getElementById('reset-username').textContent = '@' + username;
+        document.getElementById('reset-username').textContent = '@' + (username || '');
         document.getElementById('form-reset-pw').action = `/admin/users/${userId}/reset-password`;
         openModal('modal-reset-pw');
     }
 </script>
 {% endblock %}
+
