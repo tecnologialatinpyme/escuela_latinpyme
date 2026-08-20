@@ -27,41 +27,49 @@ def _save_one(phone: str, data: dict) -> None:
     db.save_conversation(phone, data)
 
 
+from datetime import datetime, timezone
+
+def _iso_ts():
+    return datetime.now(timezone.utc).isoformat()
+
 # Datos semilla — solo se insertan si el archivo no existe aún
 _SEED_DATA = {
     "+573144187269": {
         "name": "Andrés Mendoza",
         "avatar": "AM",
         "messages": [
-            {"id": str(uuid.uuid4()), "direction": "out", "body": "Hola Andrés, te contactamos desde la Escuela LatinPyme. ¿Tienes disponibilidad para conocer nuestro Diplomado en Liderazgo?", "ts": "09:14"},
-            {"id": str(uuid.uuid4()), "direction": "in",  "body": "¡Hola! Sí, me interesa mucho. ¿Cuándo inicia?", "ts": "09:22"},
-            {"id": str(uuid.uuid4()), "direction": "out", "body": "El próximo cohorte inicia el 15 de agosto. Son 6 semanas en modalidad virtual. ¿Te envío el brochure?", "ts": "09:25"},
-            {"id": str(uuid.uuid4()), "direction": "in",  "body": "Perfecto, sí envíame la información por favor.", "ts": "09:31"},
+            {"id": str(uuid.uuid4()), "direction": "out", "body": "Hola Andrés, te contactamos desde la Escuela LatinPyme. ¿Tienes disponibilidad para conocer nuestro Diplomado en Liderazgo?", "ts": _iso_ts()},
+            {"id": str(uuid.uuid4()), "direction": "in",  "body": "¡Hola! Sí, me interesa mucho. ¿Cuándo inicia?", "ts": _iso_ts()},
+            {"id": str(uuid.uuid4()), "direction": "out", "body": "El próximo cohorte inicia el 15 de agosto. Son 6 semanas en modalidad virtual. ¿Te envío el brochure?", "ts": _iso_ts()},
+            {"id": str(uuid.uuid4()), "direction": "in",  "body": "Perfecto, sí envíame la información por favor.", "ts": _iso_ts()},
         ],
         "unread": 1,
         "last_message": "Perfecto, sí envíame la información por favor.",
-        "last_ts": "09:31"
+        "last_ts": _iso_ts(),
+        "human_required": False
     },
     "+573105584725": {
         "name": "Diana Duarte",
         "avatar": "DD",
         "messages": [
-            {"id": str(uuid.uuid4()), "direction": "out", "body": "Diana, buenos días. Le escribimos para informarle sobre el Diplomado en Gestión del Talento Humano.", "ts": "10:05"},
-            {"id": str(uuid.uuid4()), "direction": "in",  "body": "Gracias por contactarme. ¿Tiene modalidad presencial?", "ts": "10:48"},
+            {"id": str(uuid.uuid4()), "direction": "out", "body": "Diana, buenos días. Le escribimos para informarle sobre el Diplomado en Gestión del Talento Humano.", "ts": _iso_ts()},
+            {"id": str(uuid.uuid4()), "direction": "in",  "body": "Gracias por contactarme. ¿Tiene modalidad presencial?", "ts": _iso_ts()},
         ],
         "unread": 1,
         "last_message": "Gracias por contactarme. ¿Tiene modalidad presencial?",
-        "last_ts": "10:48"
+        "last_ts": _iso_ts(),
+        "human_required": False
     },
     "+573215896325": {
         "name": "Carlos Restrepo",
         "avatar": "CR",
         "messages": [
-            {"id": str(uuid.uuid4()), "direction": "out", "body": "Carlos, le escribimos desde LatinPyme. Notamos que registró interés en el área de Finanzas Corporativas.", "ts": "11:30"},
+            {"id": str(uuid.uuid4()), "direction": "out", "body": "Carlos, le escribimos desde LatinPyme. Notamos que registró interés en el área de Finanzas Corporativas.", "ts": _iso_ts()},
         ],
         "unread": 0,
         "last_message": "Carlos, le escribimos desde LatinPyme.",
-        "last_ts": "11:30"
+        "last_ts": _iso_ts(),
+        "human_required": False
     },
 }
 
@@ -213,6 +221,24 @@ def webhook_receive():
                     conversations_store[phone_key]["unread"] += 1
                     conversations_store[phone_key]["last_message"] = body
                     conversations_store[phone_key]["last_ts"] = _now_ts()
+
+                    # Detectar intención explícita de asesor humano en el mensaje entrante
+                    body_lower = (body or '').lower()
+                    human_keywords = [
+                        'asesor humano', 'hablar con asesor', 'hablar con un asesor',
+                        'hablar con alguien', 'asesor de ventas', 'asesor de soporte',
+                        'comunicarme con un humano', 'atencion humana', 'atención humana',
+                        'quiero un asesor', 'necesito un asesor', 'pasar a un asesor',
+                        'asesor_humano'
+                    ]
+                    if any(kw in body_lower for kw in human_keywords):
+                        conversations_store[phone_key]["human_required"] = True
+                        try:
+                            from db.database import set_ai_conversation_enabled
+                            set_ai_conversation_enabled(phone_key, False)
+                        except Exception as e:
+                            print(f"[WEBHOOK] Error pausando IA para {phone_key}: {e}")
+
                     _save_one(phone_key, conversations_store[phone_key])
                     db.add_message(phone=phone_key, direction="in", body=body, ts=new_msg["ts"], msg_id=msg_id)
 
@@ -261,8 +287,15 @@ def _trigger_ai_reply(phone_key: str, conv: dict) -> None:
         if disparador and disparador != 'ninguno':
             conv['last_trigger'] = disparador
 
-        if pausar_ia or disparador == 'asesor_humano_soporte':
+        is_human_transfer = (
+            pausar_ia or 
+            (disparador and 'asesor_humano' in str(disparador).lower()) or
+            disparador in ['asesor_humano_soporte', 'asesor_humano_ventas', 'soluciones_patrocinador']
+        )
+
+        if is_human_transfer:
             conv['human_required'] = True
+            _save_one(phone_key, conv)
             try:
                 from db.database import set_ai_conversation_enabled
                 set_ai_conversation_enabled(phone_key, False)
@@ -607,3 +640,40 @@ def api_ai_suggestion():
         return jsonify(resultado)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ──────────────────────────────────────────────
+# API — Toggle Atención Humana Requerida
+# ──────────────────────────────────────────────
+@conversations_bp.route('/api/human-toggle', methods=['POST'])
+@login_required
+def api_human_toggle():
+    """
+    Marca o desmarca una conversación como 'human_required' (Atención de Asesor).
+    Recibe JSON: { "phone": "+57XXX", "human_required": true/false }
+    """
+    data = request.get_json(silent=True) or {}
+    phone = data.get('phone', '').strip()
+    human_required = bool(data.get('human_required', True))
+    reactivate_ai = data.get('reactivate_ai', False)
+
+    if not phone or phone not in conversations_store:
+        return jsonify({"exito": False, "error": "Conversación no encontrada"}), 404
+
+    conversations_store[phone]["human_required"] = human_required
+    _save_one(phone, conversations_store[phone])
+
+    if not human_required and reactivate_ai:
+        try:
+            from db.database import set_ai_conversation_enabled
+            set_ai_conversation_enabled(phone, True)
+        except Exception as e:
+            print(f"[HUMAN-TOGGLE] Error re-enabling AI: {e}")
+
+    return jsonify({
+        "exito": True,
+        "phone": phone,
+        "human_required": human_required,
+        "mensaje": f"Estado de atención humana actualizado para {phone}."
+    })
+

@@ -353,6 +353,20 @@
             </div>
         </div>
 
+        {# ── Pestañas de Filtro de Bandeja ── #}
+        <div class="px-3 py-1.5 bg-slate-50 border-b border-slate-200/80 flex items-center gap-1 text-xs font-['Outfit']">
+            <button id="filter-tab-all" onclick="setChatFilter('all')" class="filter-tab active flex-1 py-1.5 px-2 rounded-lg font-semibold text-center transition bg-white text-indigo-700 shadow-sm border border-slate-200">
+                Todos
+            </button>
+            <button id="filter-tab-human" onclick="setChatFilter('human')" class="filter-tab flex-1 py-1.5 px-2 rounded-lg font-semibold text-center transition text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-1">
+                <span>🚨 Asesor</span>
+                <span id="human-count-badge" class="hidden bg-rose-500 text-white text-[10px] font-extrabold px-1.5 py-0.2 rounded-full animate-pulse">0</span>
+            </button>
+            <button id="filter-tab-ai" onclick="setChatFilter('ai')" class="filter-tab flex-1 py-1.5 px-2 rounded-lg font-semibold text-center transition text-slate-600 hover:bg-slate-100">
+                🤖 Solo IA
+            </button>
+        </div>
+
         <div class="chat-list" id="chat-list">
             {# Poblado dinámicamente por JS #}
             <div class="flex items-center justify-center h-32 text-slate-400 text-xs">
@@ -379,7 +393,12 @@
             <div class="chat-window-header">
                 <div class="chat-avatar" id="active-avatar" style="width:38px;height:38px;font-size:12px;">??</div>
                 <div>
-                    <div class="chat-window-name" id="active-name">—</div>
+                    <div class="flex items-center gap-2">
+                        <div class="chat-window-name" id="active-name">—</div>
+                        <span id="active-human-badge" class="hidden bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span> 🚨 Asesor Requerido
+                        </span>
+                    </div>
                     <div class="chat-window-status" id="active-phone">—</div>
                 </div>
                 <div class="ml-auto flex items-center gap-2">
@@ -392,6 +411,21 @@
                     </button>
                     <button onclick="openChatDetailsDrawer()" class="text-slate-400 hover:text-brand-500 transition text-sm p-1.5 rounded-lg hover:bg-slate-100" title="Más opciones">
                         <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+                </div>
+            </div>
+
+            {# ── BANNER DE ALERTA — Transferencia a Asesor Humano ── #}
+            <div id="human-alert-banner" class="hidden bg-gradient-to-r from-amber-500 via-amber-600 to-rose-600 text-white px-4 py-2.5 flex items-center justify-between shadow-md flex-shrink-0 animate-fadeIn font-['Outfit']">
+                <div class="flex items-center gap-2.5 text-xs font-semibold">
+                    <span class="w-2.5 h-2.5 rounded-full bg-white animate-ping flex-shrink-0"></span>
+                    <i class="fa-solid fa-headset text-base text-amber-100"></i>
+                    <span><b>¡ATENCIÓN DE ASESOR REQUERIDA!</b> El cliente solicitó ser atendido por un humano. La respuesta automática de IA está pausada.</span>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <button onclick="resolveHumanRequired(activePhone)" class="bg-white hover:bg-amber-50 text-amber-950 text-xs font-bold px-3 py-1.5 rounded-xl shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-check text-emerald-600"></i>
+                        Marcar Atendido / Reactivar IA
                     </button>
                 </div>
             </div>
@@ -570,6 +604,45 @@
 let activePhone = null;
 let allChats = [];
 let lastMessageCount = 0;
+let currentFilter = 'all';
+let alertedHumanPhones = new Set();
+
+// ════════════════════════════════════════════════
+// FILTROS DE BANDEJA
+// ════════════════════════════════════════════════
+function setChatFilter(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-tab').forEach(b => {
+        b.classList.remove('bg-white', 'text-indigo-700', 'shadow-sm', 'border', 'border-slate-200');
+        b.classList.add('text-slate-600');
+    });
+    const activeTab = document.getElementById(`filter-tab-${filter}`);
+    if (activeTab) {
+        activeTab.classList.add('bg-white', 'text-indigo-700', 'shadow-sm', 'border', 'border-slate-200');
+        activeTab.classList.remove('text-slate-600');
+    }
+    renderChatList(allChats);
+}
+
+// ════════════════════════════════════════════════
+// NOTIFICACIÓN SONORA (Web Audio API Synth)
+// ════════════════════════════════════════════════
+function playNotificationSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+    } catch(e){}
+}
 
 // ════════════════════════════════════════════════
 // POLLING — Actualizar chats cada 3 segundos
@@ -584,29 +657,107 @@ async function pollMessages() {
         if (!res.ok) return;
         const data = await res.json();
 
-        allChats = data.chats;
-        renderChatList(allChats);
+        allChats = data.chats || [];
 
-        if (activePhone && data.active_messages) {
-            const newCount = data.active_messages.length;
-            if (newCount !== lastMessageCount) {
-                lastMessageCount = newCount;
-                renderMessages(data.active_messages);
+        // Conteo y alerta de atención humana requerida
+        const humanChats = allChats.filter(c => c.human_required);
+        const humanBadge = document.getElementById('human-count-badge');
+        if (humanBadge) {
+            if (humanChats.length > 0) {
+                humanBadge.textContent = humanChats.length;
+                humanBadge.classList.remove('hidden');
+            } else {
+                humanBadge.classList.add('hidden');
             }
         }
 
-        // Detectar mensajes entrantes nuevos y mostrar notificación
+        // Notificación de audio y Toast para solicitudes de asesor no notificadas
+        humanChats.forEach(c => {
+            if (!alertedHumanPhones.has(c.phone)) {
+                alertedHumanPhones.add(c.phone);
+                playNotificationSound();
+                showToast(`🚨 ¡ALERTA! El cliente ${c.name} (${c.phone}) solicitó un Asesor Humano.`);
+            }
+        });
+
+        // Actualizar título de la ventana del navegador
+        if (humanChats.length > 0) {
+            document.title = `(🚨 ${humanChats.length} Asesor) Conversaciones — Escuela LatinPyme`;
+        } else {
+            document.title = `Conversaciones — Escuela LatinPyme`;
+        }
+
+        renderChatList(allChats);
+
+        if (activePhone) {
+            const activeChat = allChats.find(c => c.phone === activePhone);
+            updateActiveChatHeaderStatus(activeChat);
+
+            if (data.active_messages) {
+                const newCount = data.active_messages.length;
+                if (newCount !== lastMessageCount) {
+                    lastMessageCount = newCount;
+                    renderMessages(data.active_messages, activeChat);
+                }
+            }
+        }
+
+        // Contador no leídos
         const totalUnread = allChats.reduce((sum, c) => sum + (c.unread || 0), 0);
         if (totalUnread > 0) {
             const badge = document.getElementById('total-chats-badge');
-            badge.textContent = totalUnread;
-            badge.classList.replace('bg-indigo-50', 'bg-rose-100');
-            badge.classList.replace('text-indigo-700', 'text-rose-700');
-            badge.classList.replace('border-indigo-100', 'border-rose-200');
+            if (badge) {
+                badge.textContent = totalUnread;
+                badge.classList.replace('bg-indigo-50', 'bg-rose-100');
+                badge.classList.replace('text-indigo-700', 'text-rose-700');
+                badge.classList.replace('border-indigo-100', 'border-rose-200');
+            }
         }
 
     } catch (e) {
         console.warn('Poll error:', e);
+    }
+}
+
+function updateActiveChatHeaderStatus(chat) {
+    const banner = document.getElementById('human-alert-banner');
+    const headerBadge = document.getElementById('active-human-badge');
+    if (chat && chat.human_required) {
+        if (banner) banner.classList.remove('hidden');
+        if (headerBadge) {
+            headerBadge.classList.remove('hidden');
+            headerBadge.classList.add('flex');
+        }
+    } else {
+        if (banner) banner.classList.add('hidden');
+        if (headerBadge) {
+            headerBadge.classList.add('hidden');
+            headerBadge.classList.remove('flex');
+        }
+    }
+}
+
+async function resolveHumanRequired(phone) {
+    if (!phone) return;
+    try {
+        const res = await fetch('/conversations/api/human-toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: phone, human_required: false, reactivate_ai: true })
+        });
+        const data = await res.json();
+        if (data.exito) {
+            showToast('✅ Atención finalizada. IA reactivada para este chat.');
+            document.getElementById('human-alert-banner').classList.add('hidden');
+            const headerBadge = document.getElementById('active-human-badge');
+            if (headerBadge) {
+                headerBadge.classList.add('hidden');
+                headerBadge.classList.remove('flex');
+            }
+            await pollMessages();
+        }
+    } catch(e) {
+        console.error('Error al resolver estado de asesor:', e);
     }
 }
 
@@ -615,29 +766,49 @@ async function pollMessages() {
 // ════════════════════════════════════════════════
 function renderChatList(chats) {
     const query = document.getElementById('chat-search').value.toLowerCase();
-    const filtered = chats.filter(c =>
+    let filtered = chats.filter(c =>
         c.name.toLowerCase().includes(query) ||
         c.phone.includes(query)
     );
+
+    if (currentFilter === 'human') {
+        filtered = filtered.filter(c => c.human_required);
+    } else if (currentFilter === 'ai') {
+        filtered = filtered.filter(c => !c.human_required);
+    }
 
     const container = document.getElementById('chat-list');
 
     if (filtered.length === 0) {
         container.innerHTML = `
-            <div class="flex flex-col items-center justify-center h-32 text-slate-400 text-xs gap-2">
+            <div class="flex flex-col items-center justify-center h-32 text-slate-400 text-xs gap-2 font-['Outfit']">
                 <i class="fa-solid fa-comment-slash text-xl opacity-40"></i>
                 <span>Sin conversaciones</span>
             </div>`;
         return;
     }
 
-    container.innerHTML = filtered.map(chat => `
-        <div class="chat-item ${chat.phone === activePhone ? 'active' : ''}"
+    container.innerHTML = filtered.map(chat => {
+        const isHuman = chat.human_required;
+        const isActive = chat.phone === activePhone;
+        let borderStyle = '';
+        if (isHuman) borderStyle = 'border-left: 4px solid #f43f5e; background: #fff5f5;';
+        if (isActive) borderStyle = 'border-left: 4px solid #6366f1; background: #ede9fe;';
+
+        return `
+        <div class="chat-item ${isActive ? 'active' : ''}"
+             style="${borderStyle}"
              onclick="openChat('${chat.phone}', '${escapeHtml(chat.name)}', '${escapeHtml(chat.avatar)}')"
              id="chat-item-${chat.phone.replace(/\+/g,'').replace(/ /g,'')}">
-            <div class="chat-avatar" style="background: ${avatarColor(chat.name)}">${escapeHtml(chat.avatar)}</div>
+            <div class="chat-avatar" style="background: ${avatarColor(chat.name)}; position: relative;">
+                ${escapeHtml(chat.avatar)}
+                ${isHuman ? '<span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 border-2 border-white rounded-full animate-ping"></span>' : ''}
+            </div>
             <div class="chat-item-info">
-                <div class="chat-item-name">${escapeHtml(chat.name)}</div>
+                <div class="flex items-center gap-1.5">
+                    <div class="chat-item-name">${escapeHtml(chat.name)}</div>
+                    ${isHuman ? '<span class="bg-rose-100 text-rose-700 border border-rose-200 text-[9px] font-extrabold px-1.5 py-0.2 rounded-md flex-shrink-0">🚨 ASESOR</span>' : ''}
+                </div>
                 <div class="chat-item-preview">${escapeHtml(chat.last_message || '—')}</div>
             </div>
             <div class="chat-item-meta">
@@ -650,9 +821,10 @@ function renderChatList(chats) {
                 ${chat.unread > 0 ? `<span class="chat-unread-badge">${chat.unread}</span>` : ''}
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 
-    document.getElementById('total-chats-badge').textContent = filtered.length;
+    document.getElementById('total-chats-badge').textContent = chats.length;
 }
 
 // ════════════════════════════════════════════════
@@ -707,13 +879,30 @@ function resetDrawerData(phone, name, avatar) {
 // ════════════════════════════════════════════════
 // RENDER — Mensajes del chat activo
 // ════════════════════════════════════════════════
-function renderMessages(messages) {
+function renderMessages(messages, activeChat) {
     const container = document.getElementById('chat-messages');
     const wasAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 60;
 
-    container.innerHTML = `
-        <div class="date-sep">Hoy</div>
-        ${messages.map(m => `
+    let html = `<div class="date-sep">Hoy</div>`;
+
+    if (activeChat && activeChat.human_required) {
+        html += `
+            <div class="my-3 py-2 px-4 bg-amber-100/90 text-amber-950 text-xs font-semibold rounded-2xl border border-amber-300/80 text-center flex items-center justify-center gap-2 shadow-sm self-center max-w-md animate-fadeIn">
+                <i class="fa-solid fa-headset text-amber-700 text-sm"></i>
+                <span>Conversación transferida a Asesor Humano (IA Pausada)</span>
+            </div>
+        `;
+    }
+
+    html += messages.map(m => {
+        const isHumanTrigger = m.disparador && m.disparador.includes('asesor_humano');
+        return `
+            ${isHumanTrigger ? `
+                <div class="my-2 py-1.5 px-3 bg-rose-50 text-rose-800 text-[11px] font-semibold rounded-xl border border-rose-200 text-center flex items-center justify-center gap-1.5 self-center max-w-sm font-['Outfit']">
+                    <i class="fa-solid fa-bell text-rose-600"></i>
+                    <span>Disparador activado: Transferencia a Asesor Humano</span>
+                </div>
+            ` : ''}
             <div class="msg-bubble ${m.direction === 'in' ? 'msg-in' : 'msg-out'}">
                 ${escapeHtml(m.body)}
                 <span class="msg-ts">
@@ -721,10 +910,11 @@ function renderMessages(messages) {
                     ${m.direction === 'out' ? '<span class="msg-ticks">✓✓</span>' : ''}
                 </span>
             </div>
-        `).join('')}
-    `;
+        `;
+    }).join('');
 
-    // Auto-scroll al fondo si ya estaba ahí
+    container.innerHTML = html;
+
     if (wasAtBottom) {
         container.scrollTop = container.scrollHeight;
     }
