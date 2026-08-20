@@ -66,18 +66,22 @@ def _seed_admin_user():
     Crea el usuario admin por defecto si no existe ningún usuario en la BD.
     Solo se ejecuta en el primer arranque con BD vacía.
     """
-    from db import user_store
-    if user_store.count_users() == 0:
-        result = user_store.create_user(
-            username='admin',
-            email='admin@latinpyme.com',
-            password='LatinPyme2025!',
-            full_name='Administrador',
-            role='admin'
-        )
-        if result:
-            print("[APP] Usuario admin creado. Credenciales: admin / LatinPyme2025!")
-            print("[APP] IMPORTANTE: Cambia la contrasena despues del primer login.")
+    try:
+        from db import user_store
+        if user_store.count_users() == 0:
+            result = user_store.create_user(
+                username='admin',
+                email='admin@latinpyme.com',
+                password='LatinPyme2025!',
+                full_name='Administrador',
+                role='admin'
+            )
+            if result:
+                print("[APP] Usuario admin creado. Credenciales: admin / LatinPyme2025!")
+                print("[APP] IMPORTANTE: Cambia la contrasena despues del primer login.")
+    except Exception as e:
+        print(f"[APP] Advertencia al verificar o sembrar usuario admin: {e}")
+
 
 
 app = create_app()

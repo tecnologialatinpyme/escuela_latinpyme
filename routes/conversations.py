@@ -65,11 +65,17 @@ _SEED_DATA = {
     },
 }
 
-# Inicializar store: cargar desde disco; si está vacío, sembrar datos de ejemplo
-conversations_store = _load_store()
-if not conversations_store:
-    conversations_store.update(_SEED_DATA)
-    _save_store(conversations_store)
+# Inicializar store: cargar desde disco; si está vacío o falla la BD, usar fallback seguro sin romper el arranque
+conversations_store = {}
+try:
+    conversations_store = _load_store()
+    if not conversations_store:
+        conversations_store.update(_SEED_DATA)
+        _save_store(conversations_store)
+except Exception as e:
+    print(f"[CONVERSATIONS] Advertencia cargando conversaciones en arranque: {e}")
+    conversations_store = _SEED_DATA.copy()
+
 
 
 def _now_ts():
