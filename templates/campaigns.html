@@ -5,17 +5,23 @@
 {% block header_title %}Campañas de WhatsApp{% endblock %}
 
 {% block header_badges %}
-<span class="bg-indigo-50 text-indigo-700 text-xs px-3 py-1 rounded-full font-semibold border border-indigo-100 flex items-center gap-1.5">
-    <i class="fa-solid fa-bullhorn"></i>
-    Meta Cloud API
-</span>
+<div class="flex items-center gap-2">
+    <button onclick="abrirModalCrearPlantilla()" class="bg-brand-600 hover:bg-brand-700 text-white text-xs px-3.5 py-1.5 rounded-xl font-bold shadow-md shadow-brand-500/20 transition flex items-center gap-1.5 cursor-pointer">
+        <i class="fa-solid fa-plus-circle"></i>
+        <span>Crear Plantilla Meta</span>
+    </button>
+    <button onclick="cargarPlantillas()" title="Refrescar Estados de Meta" class="bg-white hover:bg-slate-50 text-slate-700 text-xs px-3 py-1.5 rounded-xl font-semibold border border-slate-200 shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+        <i class="fa-solid fa-rotate text-brand-500"></i>
+        <span>Refrescar Estados</span>
+    </button>
+</div>
 {% endblock %}
 
 {% block content %}
 <div class="space-y-6">
 
     <!-- ESTADO VACÍO (No hay contactos en LocalStorage) -->
-    <div id="campaign-empty-state" class="hidden bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center max-w-lg mx-auto mt-12">
+    <div id="campaign-empty-state" class="hidden bg-white p-12 rounded-2xl border border-slate-200 shadow-sm text-center max-w-lg mx-auto mt-12 font-['Outfit']">
         <div class="bg-indigo-50 text-indigo-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-sm border border-brand-100">
             <i class="fa-solid fa-people-group"></i>
         </div>
@@ -27,7 +33,7 @@
     </div>
 
     <!-- PANEL DE CAMPAÑA ACTIVO -->
-    <div id="campaign-active-state" class="grid grid-cols-1 lg:grid-cols-3 gap-6 hidden">
+    <div id="campaign-active-state" class="grid grid-cols-1 lg:grid-cols-3 gap-6 hidden font-['Outfit']">
         
         <!-- COLUMNA IZQUIERDA: CONFIGURACIÓN DE ENVÍO -->
         <div class="space-y-6 lg:col-span-1">
@@ -52,16 +58,30 @@
 
             <!-- Panel de Plantillas Meta -->
             <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
-                    <i class="fa-solid fa-folder-open text-brand-500"></i>
-                    Plantilla de Meta
-                </h3>
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-folder-open text-brand-500"></i>
+                        Plantilla de Meta
+                    </h3>
+                    <button type="button" onclick="abrirModalCrearPlantilla()" class="text-[11px] bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold px-2.5 py-1 rounded-lg border border-brand-200 transition flex items-center gap-1 cursor-pointer">
+                        <i class="fa-solid fa-plus text-[10px]"></i> Nueva Plantilla
+                    </button>
+                </div>
                 
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1.5">Elige una plantilla homologada</label>
-                    <select id="selectTemplate" onchange="seleccionarPlantilla()" class="w-full border border-slate-200 rounded-xl p-3 text-xs focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition font-semibold">
+                    <select id="selectTemplate" onchange="seleccionarPlantilla()" class="w-full border border-slate-200 rounded-xl p-3 text-xs focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition font-semibold bg-white">
                         <option value="">Cargando plantillas...</option>
                     </select>
+                </div>
+
+                <!-- Insignia de Estado de la Plantilla -->
+                <div id="template-status-container" class="hidden">
+                    <div id="template-status-badge"></div>
+                </div>
+
+                <!-- Cuadro de Alerta cuando está PENDING o REJECTED -->
+                <div id="alert-pending-template" class="hidden p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-semibold space-y-1">
                 </div>
 
                 <!-- Previsualización Dinámica de Plantilla -->
@@ -81,7 +101,7 @@
                 </div>
 
                 <!-- Botón de Lanzamiento -->
-                <button type="button" onclick="lanzarCampanaMasiva()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-brand-500/20 hover:shadow-brand-500/30 transition-all duration-200 flex items-center justify-center gap-2">
+                <button id="btn-lanzar-campana" type="button" onclick="lanzarCampanaMasiva()" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-brand-500/20 hover:shadow-brand-500/30 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-paper-plane"></i>
                     Lanzar Campaña
                 </button>
@@ -96,7 +116,7 @@
                         <h3 class="font-bold text-slate-800 text-sm uppercase tracking-wider">Destinatarios Calificados</h3>
                         <p class="text-[10px] text-slate-400 mt-0.5">Leads importados que serán impactados por esta campaña.</p>
                     </div>
-                    <button type="button" onclick="limpiarCampana()" class="text-xs text-rose-500 font-semibold hover:underline">
+                    <button type="button" onclick="limpiarCampana()" class="text-xs text-rose-500 font-semibold hover:underline cursor-pointer">
                         <i class="fa-solid fa-trash-can mr-1"></i> Descartar Lote
                     </button>
                 </div>
@@ -109,6 +129,100 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- MODAL CREAR PLANTILLA DE META -->
+<div id="modalCrearPlantilla" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4 font-['Outfit']">
+    <div class="bg-white rounded-3xl w-full max-w-xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh] animate-fadeIn">
+        
+        <!-- Header del Modal -->
+        <div class="bg-slate-900 text-white p-5 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-2xl bg-brand-500/20 text-brand-400 flex items-center justify-center text-base border border-brand-500/30">
+                    <i class="fa-brands fa-whatsapp"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-sm">Crear Nueva Plantilla en Meta</h3>
+                    <p class="text-[11px] text-slate-400">Se enviará a aprobación oficial de Meta Cloud API</p>
+                </div>
+            </div>
+            <button type="button" onclick="cerrarModalCrearPlantilla()" class="text-slate-400 hover:text-white transition cursor-pointer">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Cuerpo del Formulario -->
+        <div class="p-6 space-y-4 overflow-y-auto">
+            
+            <!-- Nombre de la Plantilla -->
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Nombre de la Plantilla (ID en Meta)</label>
+                <input type="text" id="tpl-nombre" oninput="normalizarNombrePlantilla(this)" placeholder="ej: oferta_diplomado_liderazgo" class="w-full border border-slate-200 rounded-xl p-3 text-xs focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none font-semibold text-slate-800">
+                <p class="text-[10px] text-slate-400 mt-1">Solo letras minúsculas, números y guiones bajos (sin espacios ni acentos).</p>
+            </div>
+
+            <!-- Categoría de Meta -->
+            <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Categoría de Meta</label>
+                <select id="tpl-categoria" class="w-full border border-slate-200 rounded-xl p-3 text-xs focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none font-semibold text-slate-700 bg-white">
+                    <option value="UTILITY" selected>UTILITY (Utilidad / Información de Cursos / Recordatorios)</option>
+                    <option value="MARKETING">MARKETING (Promociones / Ofertas Especiales / Eventos)</option>
+                    <option value="AUTHENTICATION">AUTHENTICATION (Códigos de Verificación)</option>
+                </select>
+            </div>
+
+            <!-- Texto de la Plantilla -->
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block text-xs font-bold text-slate-700">Cuerpo del Mensaje (Texto con Variables)</label>
+                    <div class="flex items-center gap-1">
+                        <button type="button" onclick="insertarVariableEnTexto('{{1}}')" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded-lg border border-slate-200 transition cursor-pointer">
+                            + {{1}} Nombre
+                        </button>
+                        <button type="button" onclick="insertarVariableEnTexto('{{2}}')" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded-lg border border-slate-200 transition cursor-pointer">
+                            + {{2}} Mensaje IA
+                        </button>
+                        <button type="button" onclick="insertarVariableEnTexto('{{3}}')" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2 py-0.5 rounded-lg border border-slate-200 transition cursor-pointer">
+                            + {{3}} Curso
+                        </button>
+                    </div>
+                </div>
+                <textarea id="tpl-texto" rows="4" oninput="actualizarPrevisualizacionWhatsApp()" placeholder="Hola {{1}}, te invitamos al taller de {{2}} para potenciar tu carrera..." class="w-full border border-slate-200 rounded-xl p-3 text-xs focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none font-medium text-slate-800 resize-none"></textarea>
+            </div>
+
+            <!-- Previsualización Estilo WhatsApp -->
+            <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Vista Previa WhatsApp</label>
+                <div class="p-4 bg-[#efeae2] rounded-2xl border border-slate-200 shadow-inner">
+                    <div class="bg-white p-3.5 rounded-2xl rounded-tl-none shadow-sm max-w-sm border border-slate-200 text-xs text-slate-800 leading-relaxed font-['Outfit'] relative">
+                        <span id="wa-preview-text" class="whitespace-pre-wrap">Escribe el cuerpo del mensaje arriba para ver la vista previa...</span>
+                        <span class="block text-[9px] text-slate-400 text-right mt-1 font-mono">14:55 ✓✓</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aviso sobre Meta -->
+            <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-xs text-amber-900 font-semibold">
+                <i class="fa-solid fa-clock-rotate-left text-amber-600 text-base mt-0.5 flex-shrink-0"></i>
+                <div>
+                    <b>Proceso de Aprobación por Meta:</b> Al hacer clic en <i>Enviar a Revisión</i>, Meta registrará la plantilla con estado <b>PENDING</b>. Tan pronto Meta apruebe el contenido (entre 1 min y 2h), su estado cambiará a <b>APPROVED</b> y se activará el botón para lanzar tus campañas.
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer del Modal -->
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+            <button type="button" onclick="cerrarModalCrearPlantilla()" class="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition cursor-pointer">
+                Cancelar
+            </button>
+            <button type="button" onclick="enviarCrearPlantillaMeta()" id="btn-crear-plantilla" class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-brand-500/20 transition flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-paper-plane"></i>
+                Enviar a Revisión de Meta
+            </button>
+        </div>
+
     </div>
 </div>
 
@@ -198,6 +312,105 @@
         });
     }
 
+    // ════════════════════════════════════════════════
+    // MODAL Y GESTIÓN DE PLANTILLAS META
+    // ════════════════════════════════════════════════
+    function abrirModalCrearPlantilla() {
+        document.getElementById('modalCrearPlantilla').classList.remove('hidden');
+        document.getElementById('tpl-nombre').focus();
+    }
+
+    function cerrarModalCrearPlantilla() {
+        document.getElementById('modalCrearPlantilla').classList.add('hidden');
+    }
+
+    function normalizarNombrePlantilla(input) {
+        let val = input.value.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+        input.value = val;
+    }
+
+    function insertarVariableEnTexto(variableStr) {
+        const txtArea = document.getElementById('tpl-texto');
+        const start = txtArea.selectionStart;
+        const end = txtArea.selectionEnd;
+        const currentText = txtArea.value;
+        txtArea.value = currentText.substring(0, start) + variableStr + currentText.substring(end);
+        txtArea.selectionStart = txtArea.selectionEnd = start + variableStr.length;
+        txtArea.focus();
+        actualizarPrevisualizacionWhatsApp();
+    }
+
+    function actualizarPrevisualizacionWhatsApp() {
+        const raw = document.getElementById('tpl-texto').value;
+        const previewEl = document.getElementById('wa-preview-text');
+        if (!raw.trim()) {
+            previewEl.innerText = "Escribe el cuerpo del mensaje arriba para ver la vista previa...";
+        } else {
+            previewEl.innerText = raw;
+        }
+    }
+
+    async function enviarCrearPlantillaMeta() {
+        const nombre = document.getElementById('tpl-nombre').value.trim();
+        const categoria = document.getElementById('tpl-categoria').value;
+        const texto_body = document.getElementById('tpl-texto').value.trim();
+
+        if (!nombre) {
+            AlertHelper.error('Campo requerido', 'Ingresa el nombre de la plantilla.');
+            return;
+        }
+
+        if (!texto_body) {
+            AlertHelper.error('Campo requerido', 'Ingresa el cuerpo de texto del mensaje.');
+            return;
+        }
+
+        const btn = document.getElementById('btn-crear-plantilla');
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Enviando a Meta...`;
+
+        try {
+            const response = await fetch('/campaigns/api/crear_plantilla', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nombre, categoria, texto_body })
+            });
+            const data = await response.json();
+
+            if (data.exito) {
+                Swal.fire({
+                    title: '¡Plantilla Enviada a Meta!',
+                    html: `
+                        <div class="text-left text-xs space-y-2 font-['Outfit']">
+                            <p class="font-bold text-slate-800">${data.mensaje || 'Plantilla registrada correctamente.'}</p>
+                            <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900">
+                                <b>Estado Meta:</b> <span class="bg-amber-200 text-amber-900 px-2 py-0.5 rounded font-extrabold text-[10px]">🟡 ${data.status || 'PENDING'}</span>
+                                <p class="mt-1 text-[11px]">Meta revisará el texto. Una vez aprobada (APPROVED), podrás enviarla en campañas masivas.</p>
+                            </div>
+                        </div>
+                    `,
+                    icon: 'success',
+                    confirmButtonColor: '#4f46e5'
+                });
+
+                cerrarModalCrearPlantilla();
+                document.getElementById('tpl-nombre').value = '';
+                document.getElementById('tpl-texto').value = '';
+                actualizarPrevisualizacionWhatsApp();
+
+                // Refrescar plantillas inmediatamente
+                await cargarPlantillas();
+            } else {
+                AlertHelper.error('Error de Meta API', data.error || 'No se pudo registrar la plantilla en Meta.');
+            }
+        } catch(e) {
+            AlertHelper.error('Error de Red', e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Enviar a Revisión de Meta`;
+        }
+    }
+
     async function cargarPlantillas() {
         const select = document.getElementById('selectTemplate');
         select.innerHTML = '<option value="">Selecciona plantilla...</option>';
@@ -209,10 +422,19 @@
             if (data.exito && data.templates.length > 0) {
                 templatesList = data.templates;
                 templatesList.forEach(t => {
-                    select.innerHTML += `<option value="${t.name}">${t.name} (${t.status})</option>`;
+                    let icon = '🟢';
+                    let label = 'APROBADA';
+                    if (t.status === 'PENDING') {
+                        icon = '🟡';
+                        label = 'EN REVISIÓN META';
+                    } else if (t.status === 'REJECTED') {
+                        icon = '🔴';
+                        label = 'RECHAZADA';
+                    }
+                    select.innerHTML += `<option value="${t.name}">${icon} ${t.name} (${label})</option>`;
                 });
             } else {
-                select.innerHTML = '<option value="">No hay plantillas aprobadas.</option>';
+                select.innerHTML = '<option value="">No hay plantillas registradas.</option>';
             }
         } catch (error) {
             select.innerHTML = '<option value="">Error al cargar plantillas.</option>';
@@ -225,16 +447,55 @@
         const name = document.getElementById('selectTemplate').value;
         const previewBox = document.getElementById('template-preview-box');
         const mappingContainer = document.getElementById('variables-mapping-container');
+        const statusContainer = document.getElementById('template-status-container');
+        const statusBadge = document.getElementById('template-status-badge');
+        const btnLanzar = document.getElementById('btn-lanzar-campana');
+        const alertBoxPending = document.getElementById('alert-pending-template');
         
         if (!name) {
             previewBox.classList.add('hidden');
             mappingContainer.classList.add('hidden');
+            statusContainer.classList.add('hidden');
+            alertBoxPending.classList.add('hidden');
             plantillaSeleccionada = null;
+            btnLanzar.disabled = false;
+            btnLanzar.className = "w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-brand-500/20 hover:shadow-brand-500/30 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer";
             return;
         }
 
         plantillaSeleccionada = templatesList.find(t => t.name === name);
         if (!plantillaSeleccionada) return;
+
+        // Mostrar estado de la plantilla
+        statusContainer.classList.remove('hidden');
+        if (plantillaSeleccionada.status === 'APPROVED') {
+            statusBadge.innerHTML = `<span class="bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1.5 inline-flex"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> 🟢 APROBADA POR META (Lista para enviar)</span>`;
+            btnLanzar.disabled = false;
+            btnLanzar.className = "w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-brand-500/20 hover:shadow-brand-500/30 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer";
+            alertBoxPending.classList.add('hidden');
+        } else if (plantillaSeleccionada.status === 'PENDING') {
+            statusBadge.innerHTML = `<span class="bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1.5 inline-flex"><span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span> 🟡 EN REVISIÓN META (PENDING)</span>`;
+            btnLanzar.disabled = true;
+            btnLanzar.className = "w-full bg-slate-200 text-slate-400 font-semibold py-3 px-4 rounded-xl cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2";
+            alertBoxPending.classList.remove('hidden');
+            alertBoxPending.innerHTML = `
+                <div class="flex items-start gap-2">
+                    <i class="fa-solid fa-clock text-amber-600 text-sm mt-0.5"></i>
+                    <span><b>Plantilla en revisión por Meta (PENDING).</b> Tan pronto Meta la apruebe, el botón de envío se activará automáticamente. Haz clic en <i>Refrescar Estados</i> para verificar.</span>
+                </div>
+            `;
+        } else if (plantillaSeleccionada.status === 'REJECTED') {
+            statusBadge.innerHTML = `<span class="bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1.5 inline-flex"><span class="w-2 h-2 rounded-full bg-rose-500"></span> 🔴 RECHAZADA POR META</span>`;
+            btnLanzar.disabled = true;
+            btnLanzar.className = "w-full bg-slate-200 text-slate-400 font-semibold py-3 px-4 rounded-xl cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2";
+            alertBoxPending.classList.remove('hidden');
+            alertBoxPending.innerHTML = `
+                <div class="flex items-start gap-2">
+                    <i class="fa-solid fa-triangle-exclamation text-rose-600 text-sm mt-0.5"></i>
+                    <span><b>Plantilla rechazada por Meta.</b> Revisa las políticas de contenido e intenta crear una nueva plantilla.</span>
+                </div>
+            `;
+        }
 
         // Buscar texto de la plantilla en los componentes
         const bodyComponent = plantillaSeleccionada.components.find(c => c.type === 'BODY');

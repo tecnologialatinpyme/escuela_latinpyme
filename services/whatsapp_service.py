@@ -138,6 +138,8 @@ class WhatsAppService:
                 "error": f"Excepción de red: {str(e)}"
             }
 
+    _dynamic_templates = []
+
     def obtener_plantillas(self) -> list:
         """
         Recupera las plantillas de mensaje aprobadas para la cuenta de WhatsApp Business.
@@ -186,8 +188,11 @@ class WhatsAppService:
             }
         ]
 
+        # Incluir plantillas creadas localmente / en sesión
+        todas_simuladas = plantillas_simuladas + self._dynamic_templates
+
         if not business_id or not token:
-            return plantillas_simuladas
+            return todas_simuladas
 
         url = f"https://graph.facebook.com/v20.0/{business_id}/message_templates"
         
@@ -196,16 +201,110 @@ class WhatsAppService:
             if res.status_code == 200:
                 data = res.json()
                 templates = data.get("data", [])
-                # Si Meta devuelve una lista vacía, agregar las simuladas como ayuda al usuario
                 if not templates:
-                    return plantillas_simuladas
+                    return todas_simuladas
+                
+                # Combinar plantillas de Meta con las creadas localmente no sincronizadas aún
+                nombres_meta = {t["name"] for t in templates}
+                for dt in self._dynamic_templates:
+                    if dt["name"] not in nombres_meta:
+                        templates.append(dt)
                 return templates
             else:
                 print(f"Error al obtener plantillas de Meta ({res.status_code}): {res.text}")
-                return plantillas_simuladas
+                return todas_simuladas
         except Exception as e:
             print(f"Excepción obteniendo plantillas de Meta: {e}")
-            return plantillas_simuladas
+            return todas_simuladas
+
+    def crear_plantilla(self, nombre: str, categoria: str, texto_body: str, idioma: str = "es") -> dict:
+        """
+        Envía una nueva plantilla de mensaje a Meta para su revisión y aprobación.
+        
+        Categorías válidas de Meta:
+        - UTILITY: Notificaciones transaccionales, actualizaciones de cursos, recordatorios.
+        - MARKETING: Ofertas, promociones, lanzamientos.
+        - AUTHENTICATION: Códigos de verificación.
+        """
+        import re
+        nombre_limpio = nombre.lower().strip().replace(" ", "_").replace("-", "_")
+        nombre_limpio = re.sub(r'[^a-z0-9_]', '', nombre_limpio)
+        
+        if not nombre_limpio:
+            return {"exito": False, "error": "El nombre de la plantilla debe contener caracteres válidos (a-z, 0-9, _)."}
+
+        business_id = app_config.meta_wa_business_id
+        token = app_config.meta_wa_token
+        
+        new_template_obj = {
+            "name": nombre_limpio,
+            "category": categoria.upper(),
+            "language": idioma,
+            "components": [
+                {
+                    "type": "BODY",
+                    "text": texto_body
+                }
+            ],
+            "status": "PENDING"
+        }
+
+        if not business_id or not token:
+            # En modo simulación la agregamos a la lista dinámica
+            self._dynamic_templates.append(new_template_obj)
+            return {
+                "exito": True,
+                "simulado": True,
+                "template": new_template_obj,
+                "mensaje": f"Plantilla '{nombre_limpio}' enviada a revisión de Meta. Estado inicial: 🟡 PENDING (En revisión)."
+            }
+            
+        url = f"https://graph.facebook.com/v20.0/{business_id}/message_templates"
+        payload = {
+            "name": nombre_limpio,
+            "category": categoria.upper(),
+            "language": idioma,
+            "components": [
+                {
+                    "type": "BODY",
+                    "text": texto_body
+                }
+            ]
+        }
+
+        try:
+            body_bytes = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json; charset=utf-8"
+            }
+            res = requests.post(url, data=body_bytes, headers=headers, timeout=10)
+            data = res.json()
+            
+            if res.status_code in [200, 201]:
+                status = data.get("status", "PENDING")
+                new_template_obj["status"] = status
+                new_template_obj["id"] = data.get("id")
+                self._dynamic_templates.append(new_template_obj)
+                return {
+                    "exito": True,
+                    "id": data.get("id"),
+                    "status": status,
+                    "template": new_template_obj,
+                    "mensaje": "Plantilla enviada exitosamente a Meta Graph API. Estado inicial: 🟡 PENDING (En revisión por Meta)."
+                }
+            else:
+                error_msg = data.get("error", {}).get("message", "Error de Meta al crear la plantilla")
+                return {
+                    "exito": False,
+                    "error": error_msg,
+                    "respuesta_meta": data
+                }
+        except Exception as e:
+            return {
+                "exito": False,
+                "error": f"Excepción de red conectando con Meta: {str(e)}"
+            }
 
     def _simular_envio(self, telefono: str, plantilla_nombre: str, parametros: list) -> dict:
         """Simula una llamada exitosa para pruebas de flujo offline."""

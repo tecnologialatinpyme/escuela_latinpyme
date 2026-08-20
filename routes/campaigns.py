@@ -51,3 +51,29 @@ def enviar_individual():
         return jsonify(res)
     except Exception as e:
         return jsonify({"exito": False, "error": f"Error interno del servidor: {str(e)}"}), 500
+
+
+@campaigns_bp.route('/api/crear_plantilla', methods=['POST'])
+@login_required
+def crear_plantilla():
+    """
+    Envía una nueva plantilla de WhatsApp a Meta para su proceso de revisión y aprobación.
+    """
+    data = request.get_json(silent=True) or {}
+    nombre = data.get("nombre", "").strip()
+    categoria = data.get("categoria", "UTILITY").strip()
+    texto_body = data.get("texto_body", "").strip()
+
+    if not nombre or not texto_body:
+        return jsonify({"exito": False, "error": "El nombre y el texto del cuerpo son obligatorios."}), 400
+
+    try:
+        res = whatsapp_service.crear_plantilla(
+            nombre=nombre,
+            categoria=categoria,
+            texto_body=texto_body
+        )
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"exito": False, "error": str(e)}), 500
+
