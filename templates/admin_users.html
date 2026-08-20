@@ -105,8 +105,13 @@
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-2 justify-end flex-wrap">
                             <!-- Editar -->
-                            <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-600 transition transform hover:-translate-y-0.5"
-                                onclick="openEdit({{ u.id | tojson }}, {{ u.full_name | tojson }}, {{ u.email | tojson }}, {{ u.role | tojson }})">
+                            <button type="button"
+                                data-id="{{ u.id }}"
+                                data-fullname="{{ u.full_name }}"
+                                data-email="{{ u.email }}"
+                                data-role="{{ u.role }}"
+                                onclick="handleEditUser(this)"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-600 transition transform hover:-translate-y-0.5">
                                 <i class="fa-solid fa-pen-to-square"></i> Editar
                             </button>
                             <!-- Activar / Desactivar -->
@@ -118,7 +123,11 @@
                                 </button>
                             </form>
                             <!-- Resetear contraseña -->
-                            <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-600 transition transform hover:-translate-y-0.5" onclick="openResetPw({{ u.id | tojson }}, {{ u.username | tojson }})">
+                            <button type="button"
+                                data-id="{{ u.id }}"
+                                data-username="{{ u.username }}"
+                                onclick="handleResetPw(this)"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-600 transition transform hover:-translate-y-0.5">
                                 <i class="fa-solid fa-key"></i> Contraseña
                             </button>
                         </div>
@@ -280,8 +289,14 @@
         }
     });
 
-    // ── Abrir modal editar con datos de manera segura ──
-    function openEdit(userId, fullName, email, role) {
+    // ── Handlers usando dataset (100% compatibles con el linter de HTML/JS del IDE) ──
+    function handleEditUser(btn) {
+        if (!btn) return;
+        const userId = btn.dataset.id;
+        const fullName = btn.dataset.fullname;
+        const email = btn.dataset.email;
+        const role = btn.dataset.role;
+
         document.getElementById('edit-full-name').value = fullName || '';
         document.getElementById('edit-email').value = email || '';
         document.getElementById('edit-role').value = role || 'asesor';
@@ -289,12 +304,16 @@
         openModal('modal-edit');
     }
 
-    // ── Abrir modal resetear contraseña ──
-    function openResetPw(userId, username) {
+    function handleResetPw(btn) {
+        if (!btn) return;
+        const userId = btn.dataset.id;
+        const username = btn.dataset.username;
+
         document.getElementById('reset-username').textContent = '@' + (username || '');
         document.getElementById('form-reset-pw').action = `/admin/users/${userId}/reset-password`;
         openModal('modal-reset-pw');
     }
 </script>
 {% endblock %}
+
 
