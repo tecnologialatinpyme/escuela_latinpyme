@@ -27,62 +27,14 @@ def _save_one(phone: str, data: dict) -> None:
     db.save_conversation(phone, data)
 
 
-from datetime import datetime, timezone
-
-def _iso_ts():
-    return datetime.now(timezone.utc).isoformat()
-
-# Datos semilla — solo se insertan si el archivo no existe aún
-_SEED_DATA = {
-    "+573144187269": {
-        "name": "Andrés Mendoza",
-        "avatar": "AM",
-        "messages": [
-            {"id": str(uuid.uuid4()), "direction": "out", "body": "Hola Andrés, te contactamos desde la Escuela LatinPyme. ¿Tienes disponibilidad para conocer nuestro Diplomado en Liderazgo?", "ts": _iso_ts()},
-            {"id": str(uuid.uuid4()), "direction": "in",  "body": "¡Hola! Sí, me interesa mucho. ¿Cuándo inicia?", "ts": _iso_ts()},
-            {"id": str(uuid.uuid4()), "direction": "out", "body": "El próximo cohorte inicia el 15 de agosto. Son 6 semanas en modalidad virtual. ¿Te envío el brochure?", "ts": _iso_ts()},
-            {"id": str(uuid.uuid4()), "direction": "in",  "body": "Perfecto, sí envíame la información por favor.", "ts": _iso_ts()},
-        ],
-        "unread": 1,
-        "last_message": "Perfecto, sí envíame la información por favor.",
-        "last_ts": _iso_ts(),
-        "human_required": False
-    },
-    "+573105584725": {
-        "name": "Diana Duarte",
-        "avatar": "DD",
-        "messages": [
-            {"id": str(uuid.uuid4()), "direction": "out", "body": "Diana, buenos días. Le escribimos para informarle sobre el Diplomado en Gestión del Talento Humano.", "ts": _iso_ts()},
-            {"id": str(uuid.uuid4()), "direction": "in",  "body": "Gracias por contactarme. ¿Tiene modalidad presencial?", "ts": _iso_ts()},
-        ],
-        "unread": 1,
-        "last_message": "Gracias por contactarme. ¿Tiene modalidad presencial?",
-        "last_ts": _iso_ts(),
-        "human_required": False
-    },
-    "+573215896325": {
-        "name": "Carlos Restrepo",
-        "avatar": "CR",
-        "messages": [
-            {"id": str(uuid.uuid4()), "direction": "out", "body": "Carlos, le escribimos desde LatinPyme. Notamos que registró interés en el área de Finanzas Corporativas.", "ts": _iso_ts()},
-        ],
-        "unread": 0,
-        "last_message": "Carlos, le escribimos desde LatinPyme.",
-        "last_ts": _iso_ts(),
-        "human_required": False
-    },
-}
-
-# Inicializar store: cargar desde disco; si está vacío o falla la BD, usar fallback seguro sin romper el arranque
+# Inicializar store directamente desde Supabase sin datos de prueba
 conversations_store = {}
 try:
     conversations_store = _load_store()
-    if not conversations_store:
-        conversations_store.update(_SEED_DATA)
-        _save_store(conversations_store)
 except Exception as e:
     print(f"[CONVERSATIONS] Advertencia cargando conversaciones en arranque: {e}")
-    conversations_store = _SEED_DATA.copy()
+    conversations_store = {}
+
 
 
 
@@ -406,8 +358,17 @@ def api_get_messages():
     """
     Retorna la lista de conversaciones para el panel izquierdo
     y los mensajes del chat activo si se pasa ?phone=<numero>.
+    Sincroniza dinámicamente con Supabase en cada consulta.
     """
     phone = request.args.get('phone')
+
+    global conversations_store
+    try:
+        db_store = _load_store()
+        if db_store is not None:
+            conversations_store = db_store
+    except Exception as e:
+        print(f"[API-MESSAGES] Aviso sincronizando conversaciones con BD: {e}")
 
     from db.database import get_ai_conversation_config
 

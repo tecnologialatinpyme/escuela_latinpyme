@@ -88,6 +88,18 @@ def get_activity_logs(limit: int = 50) -> list:
         return []
 
 
+from datetime import datetime, timezone
+
+def _format_iso_ts(ts_val: str | None) -> str:
+    """Convierte cualquier timestamp a formato ISO 8601 compatible con PostgreSQL TIMESTAMPTZ."""
+    if not ts_val:
+        return datetime.now(timezone.utc).isoformat()
+    ts_str = str(ts_val).strip()
+    if 'T' in ts_str or (len(ts_str) >= 19 and '-' in ts_str):
+        return ts_str
+    # Si es solo una hora formato "09:31" o "HH:MM", formatear a timestamp ISO actual
+    return datetime.now(timezone.utc).isoformat()
+
 # ──────────────────────────────────────────────
 # Conversaciones y Mensajes (Normalizados)
 # ──────────────────────────────────────────────
@@ -100,11 +112,17 @@ def load_store(include_deleted: bool = False) -> dict:
     try:
         client = _get_client()
 
-        # 1. Cargar conversaciones
-        query = client.table('conversations').select('*, users(id, full_name, username)')
-        if not include_deleted:
-            query = query.is_('deleted_at', 'null')
-        conv_res = query.execute()
+        # 1. Cargar conversaciones (con fallback si no existe el FK de users aún)
+        try:
+            query = client.table('conversations').select('*, users(id, full_name, username)')
+            if not include_deleted:
+                query = query.is_('deleted_at', 'null')
+            conv_res = query.execute()
+        except Exception:
+            query = client.table('conversations').select('*')
+            if not include_deleted:
+                query = query.is_('deleted_at', 'null')
+            conv_res = query.execute()
 
         store = {}
         for row in conv_res.data or []:
@@ -254,7 +272,7 @@ def add_message(
         if wa_id:
             payload['wa_message_id'] = str(wa_id)
         if ts:
-            payload['ts'] = ts
+            payload['ts'] = _format_iso_ts(ts)
 
         res = client.table('messages').insert(payload).execute()
         return res.data[0] if res.data else payload
@@ -286,7 +304,7 @@ def save_conversation(phone: str, data: dict) -> None:
             'avatar': data.get('avatar'),
             'unread': data.get('unread', 0),
             'last_message': data.get('last_message', ''),
-            'last_ts': data.get('last_ts'),
+            'last_ts': _format_iso_ts(data.get('last_ts')),
             'human_required': data.get('human_required', False),
             'assigned_to': data.get('assigned_to'),
             'data': light_data,
