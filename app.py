@@ -47,7 +47,7 @@ def create_app() -> Flask:
             _seed_admin_user()
     except Exception as e:
         print(f"[APP] Advertencia: No se pudo inicializar la BD: {e}")
-        print("[APP] Asegúrate de que DATABASE_URL esté configurada en tu archivo .env")
+        print("[APP] Asegúrate de que SUPABASE_URL y SUPABASE_SECRET_KEY estén configuradas en las variables de entorno.")
 
     # Registrar todos los Blueprints dinámicamente
     for blueprint, url_prefix in ALL_BLUEPRINTS:

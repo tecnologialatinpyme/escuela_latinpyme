@@ -157,16 +157,19 @@ def reset_password(user_id: int, new_password: str) -> bool:
 def toggle_user(user_id: int) -> bool | None:
     """
     Activa o desactiva un usuario (toggle).
+    Si se desactiva, se desasignan sus conversaciones activas.
     Retorna el nuevo estado (True=activo, False=inactivo) o None si hay error.
     """
     try:
         client = _get_client()
-        # Primero obtenemos el estado actual
         current = client.table('users').select('is_active').eq('id', user_id).single().execute()
         if not current.data:
             return None
         new_state = not current.data['is_active']
         client.table('users').update({'is_active': new_state}).eq('id', user_id).execute()
+        if not new_state:
+            # Desasignar conversaciones del usuario desactivado
+            client.table('conversations').update({'assigned_to': None}).eq('assigned_to', user_id).execute()
         return new_state
     except Exception as e:
         print(f"[USER_STORE] toggle_user error: {e}")
@@ -174,14 +177,16 @@ def toggle_user(user_id: int) -> bool | None:
 
 
 def delete_user(user_id: int) -> bool:
-    """Realiza Soft Delete en la tabla users marcando deleted_at y desactivándolo."""
+    """Realiza Soft Delete en la tabla users marcando deleted_at y desasignando sus conversaciones."""
     try:
         client = _get_client()
         client.table('users').update({'deleted_at': 'now()', 'is_active': False}).eq('id', user_id).execute()
+        client.table('conversations').update({'assigned_to': None}).eq('assigned_to', user_id).execute()
         return True
     except Exception as e:
         print(f"[USER_STORE] delete_user error: {e}")
         return False
+
 
 
 def restore_user(user_id: int) -> bool:

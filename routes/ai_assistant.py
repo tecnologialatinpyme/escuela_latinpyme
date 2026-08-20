@@ -221,8 +221,13 @@ def api_import_prompts():
                 'error': f'No se pudieron identificar las columnas requeridas (ID, Nombre, Prompt). Columnas encontradas: {", ".join(cols)}'
             }), 400
 
+        from flask_login import current_user
+        from services.ai_assistant_service import AiAssistantService
+        svc = AiAssistantService()
+
         importados = 0
         errores = 0
+        huerfanos = []
 
         for _, row in df.iterrows():
             aula_id = str(row.get(col_id, '')).strip()
@@ -233,16 +238,28 @@ def api_import_prompts():
                 ok = db.save_ai_prompt(aula_id, aula_nombre, prompt, activo=True)
                 if ok:
                     importados += 1
+                    # Verificar si el aula_id es potencialmente huérfano (no numérico o sintaxis extraña)
+                    if not aula_id.replace('.', '').isdigit():
+                        huerfanos.append(aula_id)
                 else:
                     errores += 1
+
+        admin_id = getattr(current_user, 'id', None)
+        if huerfanos:
+            detail_msg = f"Importados: {importados}. Posibles {len(huerfanos)} aulas huérfanas o no estándar: {', '.join(huerfanos[:5])}"
+            db.log_activity(admin_id, 'IMPORT_PROMPT_WARNING', detail_msg)
+        else:
+            db.log_activity(admin_id, 'IMPORT_PROMPT_SUCCESS', f"Importación masiva exitosa de {importados} prompts desde {filename}")
 
         return jsonify({
             'exito': True,
             'mensaje': f'Importación completada: {importados} prompts guardados correctamente.',
             'importados': importados,
-            'errores': errores
+            'errores': errores,
+            'aulas_huerfanas': huerfanos
         })
 
     except Exception as e:
         return jsonify({'exito': False, 'error': f'Error procesando el archivo Excel: {str(e)}'}), 500
+
 

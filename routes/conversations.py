@@ -208,6 +208,7 @@ def webhook_receive():
                     conversations_store[phone_key]["last_message"] = body
                     conversations_store[phone_key]["last_ts"] = _now_ts()
                     _save_one(phone_key, conversations_store[phone_key])
+                    db.add_message(phone=phone_key, direction="in", body=body, ts=new_msg["ts"], msg_id=msg_id)
 
                     current_app.logger.info(f"[WEBHOOK] Mensaje de {phone_key} ({name}): {body}")
 
@@ -292,6 +293,11 @@ def _trigger_ai_reply(phone_key: str, conv: dict) -> None:
         conv['last_message'] = respuesta_texto
         conv['last_ts'] = _now_ts()
         _save_one(phone_key, conv)
+        db.add_message(
+            phone=phone_key, direction='out', body=respuesta_texto, ts=ai_msg['ts'],
+            ia_generated=True, disparador=disparador, wa_sent=ai_msg['wa_sent'],
+            simulado=ai_msg['simulado'], msg_id=ai_msg['id']
+        )
 
         from flask import current_app
         current_app.logger.info(
@@ -495,6 +501,8 @@ def api_send_message():
             conv["last_message"] = body
             conv["last_ts"] = _now_ts()
             _save_one(phone, conv)
+            db.add_message(phone=phone, direction="out", body=body, ts=new_msg["ts"],
+                            wa_sent=False, simulado=False, msg_id=new_msg["id"])
             return jsonify({
                 "status": "sent",
                 "message": new_msg,
@@ -530,6 +538,8 @@ def api_send_message():
     conv["last_message"] = body
     conv["last_ts"] = _now_ts()
     _save_one(phone, conv)
+    db.add_message(phone=phone, direction="out", body=body, ts=new_msg["ts"],
+                    wa_sent=new_msg["wa_sent"], simulado=new_msg["simulado"], msg_id=new_msg["id"])
 
     return jsonify({
         "status": "sent",
