@@ -126,12 +126,15 @@ def webhook_receive():
 
                     # Actualizar estado de visto (sent, delivered, read, failed)
                     if wa_msg_id and msg_status:
-                        for p_key, conv_item in conversations_store.items():
-                            for m in conv_item.get('messages', []):
+                        for p_key, conv_item in list(conversations_store.items()):
+                            for m in list(conv_item.get('messages', [])):
                                 if m.get('id') == wa_msg_id or m.get('wa_message_id') == wa_msg_id:
                                     m['status'] = msg_status
                                     break
-                        db.update_message_status(wa_msg_id, msg_status)
+                        try:
+                            db.update_message_status(wa_msg_id, msg_status)
+                        except Exception:
+                            pass
                         current_app.logger.info(f"[WEBHOOK] Visto WhatsApp actualizado ({wa_msg_id} -> {msg_status})")
 
                 # Procesar mensajes entrantes
@@ -141,17 +144,12 @@ def webhook_receive():
                     body          = msg.get('text', {}).get('body', '[mensaje sin texto]')
                     msg_id        = msg.get('id', str(uuid.uuid4()))
 
-                    # Obtener nombre y wa_id del contacto
                     contacts = value.get('contacts', [])
                     contact  = contacts[0] if contacts else {}
                     name     = contact.get('profile', {}).get('name', '')
                     wa_id    = contact.get('wa_id', '')
                     user_id  = contact.get('user_id', from_user_id)
 
-                    # Determinar el identificador del remitente en orden de preferencia:
-                    # 1. msg.from  (número real E.164)
-                    # 2. contacts[0].wa_id  (número en formato wa)
-                    # 3. user_id  (identificador de privacidad de Meta)
                     if raw_phone and raw_phone.strip().lstrip('+').isdigit():
                         phone_key = raw_phone.strip()
                         if not phone_key.startswith('+'):
@@ -161,7 +159,6 @@ def webhook_receive():
                         phone_key = '+' + wa_id.strip()
                         display_phone = phone_key
                     elif user_id:
-                        # Modo privacidad: usamos user_id como clave, sin número real
                         phone_key = user_id
                         display_phone = '(número privado)'
                     else:
@@ -171,7 +168,7 @@ def webhook_receive():
                     if not name:
                         name = display_phone
 
-                    # Crear o actualizar conversación
+                    # Crear o actualizar conversación en el store
                     if phone_key not in conversations_store:
                         conversations_store[phone_key] = {
                             "name": name,
@@ -185,22 +182,12 @@ def webhook_receive():
                             "user_id": user_id or ''
                         }
                     else:
-                        # Actualizar nombre/datos si llegaron
                         if name and name != display_phone:
                             conversations_store[phone_key]["name"] = name
                         if wa_id:
                             conversations_store[phone_key]["wa_id"] = wa_id
 
-                    # Registrar/actualizar automáticamente en el Módulo de Contactos
-                    try:
-                        from db import contact_store
-                        contact_store.upsert_contact_from_conversation(
-                            phone=phone_key,
-                            name=name if name != display_phone else None
-                        )
-                    except Exception as c_err:
-                        current_app.logger.warning(f"[WEBHOOK] Error auto-guardando contacto {phone_key}: {c_err}")
-
+                    # Agregar mensaje recibido
                     new_msg = {
                         "id": msg_id,
                         "direction": "in",
@@ -212,7 +199,25 @@ def webhook_receive():
                     conversations_store[phone_key]["last_message"] = body
                     conversations_store[phone_key]["last_ts"] = _now_ts()
 
-                    # Detectar intención explícita de asesor humano en el mensaje entrante
+                    # Guardar en Base de Datos Supabase
+                    try:
+                        _save_one(phone_key, conversations_store[phone_key])
+                        db.add_message(phone=phone_key, direction="in", body=body, ts=new_msg["ts"], msg_id=msg_id)
+                        current_app.logger.info(f"[WEBHOOK] Mensaje de {phone_key} ({name}) guardado OK: {body}")
+                    except Exception as db_err:
+                        current_app.logger.error(f"[WEBHOOK] Error guardando mensaje en BD para {phone_key}: {db_err}")
+
+                    # Auto-guardar en Módulo de Contactos
+                    try:
+                        from db import contact_store
+                        contact_store.upsert_contact_from_conversation(
+                            phone=phone_key,
+                            name=name if name != display_phone else None
+                        )
+                    except Exception as c_err:
+                        current_app.logger.warning(f"[WEBHOOK] Error auto-guardando contacto {phone_key}: {c_err}")
+
+                    # Detectar intención de asesor humano
                     body_lower = (body or '').lower()
                     human_keywords = [
                         'asesor humano', 'hablar con asesor', 'hablar con un asesor',
@@ -229,17 +234,13 @@ def webhook_receive():
                         except Exception as e:
                             print(f"[WEBHOOK] Error pausando IA para {phone_key}: {e}")
 
-                    _save_one(phone_key, conversations_store[phone_key])
-                    db.add_message(phone=phone_key, direction="in", body=body, ts=new_msg["ts"], msg_id=msg_id)
-
-                    current_app.logger.info(f"[WEBHOOK] Mensaje de {phone_key} ({name}): {body}")
-
-                    # ── Respuesta Automática de IA ──
-                    _trigger_ai_reply(phone_key, conversations_store[phone_key])
-
+                    # Respuesta Automática de IA
+                    try:
+                        _trigger_ai_reply(phone_key, conversations_store[phone_key])
+                    except Exception as ai_err:
+                        current_app.logger.error(f"[WEBHOOK] Error en respuesta IA para {phone_key}: {ai_err}")
 
     except Exception as e:
-        # Siempre responder 200 para que Meta no reintente el evento
         current_app.logger.error(f"Error procesando webhook: {e}")
 
     return jsonify({"status": "ok"}), 200
