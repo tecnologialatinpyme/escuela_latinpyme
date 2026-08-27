@@ -486,16 +486,43 @@ def api_get_messages():
                 active_phone_key = k
                 break
 
+    active_msgs = []
+    active_name = ""
+
     if active_phone_key and active_phone_key in conversations_store:
         # Marcar como leído al abrir el chat
         conversations_store[active_phone_key]["unread"] = 0
-        return jsonify({
-            "chats": chat_list,
-            "active_messages": conversations_store[active_phone_key]["messages"],
-            "active_name": conversations_store[active_phone_key]["name"]
-        })
+        active_msgs = conversations_store[active_phone_key].get("messages", [])
+        active_name = conversations_store[active_phone_key].get("name", "")
 
-    return jsonify({"chats": chat_list, "active_messages": [], "active_name": ""})
+    # Salvaguarda: Consulta directa a la base de datos de mensajes si no se encontró en memoria
+    if phone and not active_msgs:
+        try:
+            from db.database import _get_client
+            client = _get_client()
+            clean_p = phone.strip().replace(' ', '+')
+            norm_p = normalize_phone_number(clean_p)
+            
+            m_res = client.table('messages').select('*').or_(f"conversation_phone.eq.{clean_p},conversation_phone.eq.{norm_p}").is_('deleted_at', 'null').order('ts', desc=False).execute()
+            if m_res.data:
+                active_msgs = [{
+                    "id": m.get('id'),
+                    "wa_message_id": m.get('wa_message_id'),
+                    "direction": m.get('direction'),
+                    "body": m.get('body'),
+                    "ts": m.get('ts'),
+                    "ia_generated": m.get('ia_generated', False),
+                    "disparador": m.get('disparador'),
+                    "wa_sent": m.get('wa_sent', True),
+                    "simulado": m.get('simulado', False),
+                    "status": m.get('status', 'sent')
+                } for m in m_res.data]
+                if not active_name and active_phone_key:
+                    active_name = conversations_store.get(active_phone_key, {}).get("name", clean_p)
+        except Exception as fetch_err:
+            print(f"[API-MESSAGES] Salvaguarda de mensajes error: {fetch_err}")
+
+    return jsonify({"chats": chat_list, "active_messages": active_msgs, "active_name": active_name})
 
 
 # ──────────────────────────────────────────────

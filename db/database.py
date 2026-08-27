@@ -181,36 +181,25 @@ def load_store(include_deleted: bool = False) -> dict:
                     "status": m.get('status', 'sent')
                 })
 
-            # Asociar mensajes a cada conversación
-            has_messages_in_db = False
-            for phone, msgs in messages_by_phone.items():
-                if phone in store:
-                    store[phone]["messages"] = msgs
-                    has_messages_in_db = True
+            # Asociar mensajes a cada conversación (con coincidencia de teléfono normalizado)
+            for msg_phone, msgs in messages_by_phone.items():
+                norm_msg_phone = normalize_phone_number(msg_phone)
+                matched_key = None
+                for store_phone in store.keys():
+                    if store_phone == msg_phone or store_phone == norm_msg_phone or normalize_phone_number(store_phone) == norm_msg_phone:
+                        matched_key = store_phone
+                        break
+                if matched_key:
+                    store[matched_key]["messages"] = msgs
 
-            # 3. Fallback / Auto-migración si los mensajes estaban únicamente guardados dentro del JSONB data
-            if not has_messages_in_db:
-                for row in (conv_res.data or []):
-                    phone = row['phone']
+            # Fallback individual por conversación si no tenía mensajes en la tabla normalizada
+            for row in (conv_res.data or []):
+                phone = row['phone']
+                if phone in store and not store[phone].get("messages"):
                     data = row.get('data') or {}
                     json_messages = data.get('messages', [])
-                    if json_messages and phone in store:
+                    if json_messages:
                         store[phone]["messages"] = json_messages
-                        # Migrar mensajes JSONB a la tabla messages
-                        for m in json_messages:
-                            add_message(
-                                phone=phone,
-                                direction=m.get('direction', 'in'),
-                                body=m.get('body', ''),
-                                ts=m.get('ts'),
-                                ia_generated=m.get('ia_generated', False),
-                                disparador=m.get('disparador'),
-                                wa_sent=m.get('wa_sent', True),
-                                simulado=m.get('simulado', False),
-                                msg_id=m.get('id'),
-                                status=m.get('status', 'sent')
-                            )
-                        print(f"[DB] Auto-migrados {len(json_messages)} mensajes JSONB para {phone} a tabla messages.")
 
         except Exception as msg_err:
             print(f"[DB] Aviso cargando mensajes normalizados: {msg_err}")
