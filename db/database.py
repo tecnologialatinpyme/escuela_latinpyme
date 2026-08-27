@@ -325,6 +325,7 @@ def save_conversation(phone: str, data: dict) -> None:
             'deleted_at': None
         }
         client.table('conversations').upsert(row).execute()
+        client.table('messages').update({'deleted_at': None}).or_(f"conversation_phone.eq.{phone},conversation_phone.eq.{norm_phone}").execute()
     except Exception as e:
         print(f"[DB] Error guardando conversación {norm_phone}: {e}")
 
