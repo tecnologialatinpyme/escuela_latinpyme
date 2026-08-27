@@ -13,6 +13,32 @@ from db.database import _get_client, normalize_phone_number, log_activity
 load_dotenv()
 
 
+import json
+
+CONTACTS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'contacts.json')
+
+
+def _load_local_contacts() -> dict:
+    """Carga contactos desde el archivo local de respaldo data/contacts.json."""
+    if not os.path.exists(CONTACTS_FILE):
+        return {}
+    try:
+        with open(CONTACTS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _save_local_contacts(data: dict) -> None:
+    """Guarda contactos en el archivo local de respaldo data/contacts.json."""
+    try:
+        os.makedirs(os.path.dirname(CONTACTS_FILE), exist_ok=True)
+        with open(CONTACTS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[CONTACT_STORE] Error guardando respaldo local de contactos: {e}")
+
+
 def sync_contacts_from_conversations() -> list[dict]:
     """
     Recorre todas las conversaciones registradas en el sistema y garantiza que
@@ -188,11 +214,36 @@ def upsert_contact_from_conversation(
             }
             res = client.table('contacts').insert(new_payload).execute()
             print(f"[CONTACT_STORE] Contacto creado automáticamente para {norm_phone} ({contact_name})")
+            
+            # Guardar también en respaldo local
+            local_store = _load_local_contacts()
+            local_store[norm_phone] = res.data[0] if res.data else new_payload
+            _save_local_contacts(local_store)
+            
             return res.data[0] if res.data else new_payload
 
     except Exception as e:
-        print(f"[CONTACT_STORE] upsert_contact_from_conversation error: {e}")
-        return None
+        print(f"[CONTACT_STORE] upsert_contact_from_conversation (usando respaldo local): {e}")
+        local_store = _load_local_contacts()
+        contact_name = name.strip() if (name and name != norm_phone) else norm_phone
+        now_iso = datetime.now(timezone.utc).isoformat()
+        payload = {
+            'id': norm_phone,
+            'phone': norm_phone,
+            'name': contact_name,
+            'email': email.strip() if email else None,
+            'company': company.strip() if company else None,
+            'cargo': cargo.strip() if cargo else None,
+            'ciudad': ciudad.strip() if ciudad else None,
+            'aula_id': str(aula_id).strip() if aula_id else None,
+            'aula_nombre': aula_nombre.strip() if aula_nombre else None,
+            'created_at': now_iso,
+            'updated_at': now_iso,
+            'deleted_at': None
+        }
+        local_store[norm_phone] = payload
+        _save_local_contacts(local_store)
+        return payload
 
 
 def create_contact(

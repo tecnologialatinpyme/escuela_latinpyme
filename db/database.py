@@ -36,26 +36,19 @@ def _get_client():
 # Inicialización — crear tablas si no existen
 # ──────────────────────────────────────────────
 def init_db() -> None:
-    """
-    Verifica la conexión a Supabase y crea la tabla 'conversations'
-    si no existe mediante una operación de lectura segura.
-    Las tablas 'users' y 'activity_log' deben crearse manualmente
-    en el SQL Editor de Supabase (ver instrucciones en la consola).
-    """
+    """Verifica la conexión a Supabase y comprueba la presencia de las tablas."""
     try:
         client = _get_client()
-        # Prueba de conexión: intentar leer la tabla conversations
         client.table('conversations').select('phone').limit(1).execute()
-        print("[DB] Conexion a Supabase establecida correctamente.")
+        print("[DB] Conexión a Supabase establecida correctamente (conversations OK).")
+        try:
+            client.table('contacts').select('id').limit(1).execute()
+            print("[DB] Tabla 'contacts' verificada en Supabase.")
+        except Exception:
+            print("[DB] AVISO: La tabla 'contacts' no existe en Supabase aún. Se utilizará el respaldo data/contacts.json.")
+            print("[DB] >> Para crear la tabla en Supabase, ejecuta el SQL del archivo db/schema.sql en el SQL Editor.")
     except Exception as e:
-        err_str = str(e)
-        if 'relation "conversations" does not exist' in err_str or '42P01' in err_str:
-            print("[DB] AVISO: La tabla 'conversations' no existe en Supabase.")
-            print("[DB] >> Ejecuta el SQL del archivo db/schema.sql en el SQL Editor de Supabase")
-            print("[DB]    en el SQL Editor de Supabase: https://supabase.com/dashboard/project/_/sql")
-        else:
-            print(f"[DB] Error de conexión a Supabase: {e}")
-            raise
+        print(f"[DB] Error de conexión a Supabase: {e}")
 
 
 # ──────────────────────────────────────────────
