@@ -13,9 +13,59 @@ from db.database import _get_client, normalize_phone_number, log_activity
 load_dotenv()
 
 
+def sync_contacts_from_conversations() -> list[dict]:
+    """
+    Recorre todas las conversaciones registradas en el sistema y garantiza que
+    cada una tenga su correspondiente ficha de contacto guardada en la base de datos.
+    """
+    try:
+        from db import database as db
+        store = db.load_store()
+        synced_contacts = []
+        for phone_key, data in store.items():
+            if not phone_key:
+                continue
+            norm_phone = normalize_phone_number(phone_key)
+            name = data.get('name') or norm_phone
+            aula_info = data.get('aula_info') or {}
+            email = data.get('email') or aula_info.get('email_usuario')
+            company = data.get('company') or aula_info.get('empresa_patrocinadora')
+            aula_id = aula_info.get('space_id') or aula_info.get('aula_id')
+            aula_nombre = aula_info.get('aula_nombre')
+
+            c = upsert_contact_from_conversation(
+                phone=norm_phone,
+                name=name,
+                email=email,
+                company=company,
+                aula_id=aula_id,
+                aula_nombre=aula_nombre
+            )
+            if c:
+                synced_contacts.append(c)
+            else:
+                synced_contacts.append({
+                    "id": norm_phone,
+                    "phone": norm_phone,
+                    "name": name,
+                    "email": email,
+                    "company": company,
+                    "aula_id": str(aula_id) if aula_id else None,
+                    "aula_nombre": aula_nombre,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                })
+        return synced_contacts
+    except Exception as e:
+        print(f"[CONTACT_STORE] sync_contacts_from_conversations error: {e}")
+        return []
+
+
 def list_contacts(query: str = None, include_deleted: bool = False, limit: int = 200) -> list[dict]:
     """Retorna la lista de contactos ordenados por última actualización."""
     try:
+        # Sincronizar automáticamente cualquier conversación existente hacia la tabla de contactos
+        sync_contacts_from_conversations()
+
         client = _get_client()
         req = client.table('contacts').select('*')
         if not include_deleted:
@@ -23,6 +73,9 @@ def list_contacts(query: str = None, include_deleted: bool = False, limit: int =
         req = req.order('updated_at', desc=True).limit(limit)
         res = req.execute()
         contacts = res.data or []
+
+        if not contacts:
+            contacts = sync_contacts_from_conversations()
 
         if query:
             q = str(query).lower().strip()
@@ -40,7 +93,7 @@ def list_contacts(query: str = None, include_deleted: bool = False, limit: int =
         return contacts
     except Exception as e:
         print(f"[CONTACT_STORE] list_contacts error: {e}")
-        return []
+        return sync_contacts_from_conversations()
 
 
 def get_contact_by_phone(phone: str) -> dict | None:
@@ -93,40 +146,38 @@ def upsert_contact_from_conversation(
         now_iso = datetime.now(timezone.utc).isoformat()
 
         if existing:
-            # Actualizar solo si hay nuevos campos provistos
+            # Actualizar campos cuando son provistos
             updates = {'updated_at': 'now()', 'deleted_at': None}
-            if name and name != norm_phone and existing.get('name') in [norm_phone, '', None, 'Estudiante']:
-                updates['name'] = name
-            elif name and existing.get('name') in [norm_phone, 'Estudiante']:
-                updates['name'] = name
+            if name and name != norm_phone:
+                updates['name'] = name.strip()
 
-            if email and not existing.get('email'):
-                updates['email'] = email
-            if company and not existing.get('company'):
-                updates['company'] = company
-            if cargo and not existing.get('cargo'):
-                updates['cargo'] = cargo
-            if ciudad and not existing.get('ciudad'):
-                updates['ciudad'] = ciudad
-            if aula_id and not existing.get('aula_id'):
-                updates['aula_id'] = str(aula_id)
-            if aula_nombre and not existing.get('aula_nombre'):
-                updates['aula_nombre'] = aula_nombre
+            if email:
+                updates['email'] = email.strip()
+            if company:
+                updates['company'] = company.strip()
+            if cargo:
+                updates['cargo'] = cargo.strip()
+            if ciudad:
+                updates['ciudad'] = ciudad.strip()
+            if aula_id:
+                updates['aula_id'] = str(aula_id).strip()
+            if aula_nombre:
+                updates['aula_nombre'] = aula_nombre.strip()
 
             client.table('contacts').update(updates).eq('id', existing['id']).execute()
             return {**existing, **updates}
         else:
             # Crear nuevo contacto automático
-            contact_name = name if (name and name != norm_phone) else norm_phone
+            contact_name = name.strip() if (name and name != norm_phone) else norm_phone
             new_payload = {
                 'phone': norm_phone,
                 'name': contact_name,
-                'email': email,
-                'company': company,
-                'cargo': cargo,
-                'ciudad': ciudad,
-                'aula_id': str(aula_id) if aula_id else None,
-                'aula_nombre': aula_nombre,
+                'email': email.strip() if email else None,
+                'company': company.strip() if company else None,
+                'cargo': cargo.strip() if cargo else None,
+                'ciudad': ciudad.strip() if ciudad else None,
+                'aula_id': str(aula_id).strip() if aula_id else None,
+                'aula_nombre': aula_nombre.strip() if aula_nombre else None,
                 'created_at': now_iso,
                 'updated_at': now_iso,
                 'deleted_at': None

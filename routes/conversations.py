@@ -23,8 +23,21 @@ def _save_store(store: dict) -> None:
 
 
 def _save_one(phone: str, data: dict) -> None:
-    """Guarda/actualiza una sola conversación en PostgreSQL (más eficiente)."""
+    """Guarda/actualiza una sola conversación en PostgreSQL (más eficiente) y sincroniza su contacto."""
     db.save_conversation(phone, data)
+    try:
+        from db import contact_store
+        aula_info = data.get('aula_info') or {}
+        contact_store.upsert_contact_from_conversation(
+            phone=phone,
+            name=data.get('name'),
+            email=data.get('email') or aula_info.get('email_usuario'),
+            company=data.get('company') or aula_info.get('empresa_patrocinadora'),
+            aula_id=aula_info.get('space_id') or aula_info.get('aula_id'),
+            aula_nombre=aula_info.get('aula_nombre')
+        )
+    except Exception:
+        pass
 
 
 # Inicializar store directamente desde Supabase sin datos de prueba
