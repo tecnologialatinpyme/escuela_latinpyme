@@ -69,10 +69,10 @@ def api_create_contact():
     return jsonify({"exito": False, "error": "No se pudo crear el contacto en la base de datos"}), 500
 
 
-@contacts_bp.route('/api/update/<int:contact_id>', methods=['PUT'])
+@contacts_bp.route('/api/update/<contact_id>', methods=['PUT'])
 @login_required
-def api_update_contact(contact_id: int):
-    """Actualiza la información de un contacto existente."""
+def api_update_contact(contact_id):
+    """Actualiza la información de un contacto existente por ID o Teléfono."""
     data = request.get_json(silent=True) or {}
     if not data:
         return jsonify({"exito": False, "error": "No se enviaron datos para actualizar"}), 400
@@ -84,9 +84,9 @@ def api_update_contact(contact_id: int):
     return jsonify({"exito": False, "error": "Error actualizando el contacto"}), 500
 
 
-@contacts_bp.route('/api/delete/<int:contact_id>', methods=['DELETE'])
+@contacts_bp.route('/api/delete/<contact_id>', methods=['DELETE'])
 @login_required
-def api_delete_contact(contact_id: int):
+def api_delete_contact(contact_id):
     """Elimina un contacto (Soft Delete)."""
     ok = contact_store.delete_contact(contact_id)
     if ok:

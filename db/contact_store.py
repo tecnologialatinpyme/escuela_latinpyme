@@ -28,10 +28,10 @@ def sync_contacts_from_conversations() -> list[dict]:
             norm_phone = normalize_phone_number(phone_key)
             name = data.get('name') or norm_phone
             aula_info = data.get('aula_info') or {}
-            email = data.get('email') or aula_info.get('email_usuario')
-            company = data.get('company') or aula_info.get('empresa_patrocinadora')
+            email = data.get('email') or aula_info.get('email') or aula_info.get('email_usuario')
+            company = data.get('company') or aula_info.get('client') or aula_info.get('empresa_patrocinadora')
             aula_id = aula_info.get('space_id') or aula_info.get('aula_id')
-            aula_nombre = aula_info.get('aula_nombre')
+            aula_nombre = aula_info.get('aula_nombre') or aula_info.get('client')
 
             c = upsert_contact_from_conversation(
                 phone=norm_phone,
@@ -110,11 +110,15 @@ def get_contact_by_phone(phone: str) -> dict | None:
         return None
 
 
-def get_contact_by_id(contact_id: int) -> dict | None:
-    """Busca un contacto por su ID numérico."""
+def get_contact_by_id(contact_id) -> dict | None:
+    """Busca un contacto por su ID numérico o por su teléfono."""
     try:
         client = _get_client()
-        res = client.table('contacts').select('*').eq('id', contact_id).is_('deleted_at', 'null').limit(1).execute()
+        cid_str = str(contact_id).strip()
+        if cid_str.isdigit():
+            res = client.table('contacts').select('*').eq('id', int(cid_str)).is_('deleted_at', 'null').limit(1).execute()
+        else:
+            res = client.table('contacts').select('*').eq('phone', cid_str).is_('deleted_at', 'null').limit(1).execute()
         return res.data[0] if res.data else None
     except Exception as e:
         print(f"[CONTACT_STORE] get_contact_by_id error: {e}")
@@ -228,8 +232,8 @@ def create_contact(
         return None
 
 
-def update_contact(contact_id: int, data: dict) -> bool:
-    """Actualiza la información de un contacto existente por su ID."""
+def update_contact(contact_id, data: dict) -> bool:
+    """Actualiza la información de un contacto existente por su ID o Teléfono."""
     if not contact_id or not data:
         return False
 
@@ -249,7 +253,11 @@ def update_contact(contact_id: int, data: dict) -> bool:
 
     try:
         client = _get_client()
-        client.table('contacts').update(updates).eq('id', contact_id).execute()
+        cid_str = str(contact_id).strip()
+        if cid_str.isdigit():
+            client.table('contacts').update(updates).eq('id', int(cid_str)).execute()
+        else:
+            client.table('contacts').update(updates).eq('phone', cid_str).execute()
         log_activity(None, 'UPDATE_CONTACT', f"Contacto {contact_id} actualizado.")
         return True
     except Exception as e:
@@ -257,11 +265,15 @@ def update_contact(contact_id: int, data: dict) -> bool:
         return False
 
 
-def delete_contact(contact_id: int) -> bool:
-    """Realiza Soft Delete marcando deleted_at en el contacto."""
+def delete_contact(contact_id) -> bool:
+    """Realiza Soft Delete marcando deleted_at en el contacto por ID o Teléfono."""
     try:
         client = _get_client()
-        client.table('contacts').update({'deleted_at': 'now()'}).eq('id', contact_id).execute()
+        cid_str = str(contact_id).strip()
+        if cid_str.isdigit():
+            client.table('contacts').update({'deleted_at': 'now()'}).eq('id', int(cid_str)).execute()
+        else:
+            client.table('contacts').update({'deleted_at': 'now()'}).eq('phone', cid_str).execute()
         log_activity(None, 'DELETE_CONTACT', f"Contacto ID {contact_id} marcado como eliminado.")
         return True
     except Exception as e:
