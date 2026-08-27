@@ -1,0 +1,218 @@
+"""
+db/contact_store.py
+══════════════════════════════════════════════════════════════════
+CRUD de Contactos de la Escuela LatinPyme.
+Sincronización automática con conversaciones de WhatsApp y Aulas.
+══════════════════════════════════════════════════════════════════
+"""
+import os
+from datetime import datetime, timezone
+from dotenv import load_dotenv
+from db.database import _get_client, normalize_phone_number, log_activity
+
+load_dotenv()
+
+
+def list_contacts(query: str = None, include_deleted: bool = False, limit: int = 200) -> list[dict]:
+    """Retorna la lista de contactos ordenados por última actualización."""
+    try:
+        client = _get_client()
+        req = client.table('contacts').select('*')
+        if not include_deleted:
+            req = req.is_('deleted_at', 'null')
+        req = req.order('updated_at', desc=True).limit(limit)
+        res = req.execute()
+        contacts = res.data or []
+
+        if query:
+            q = str(query).lower().strip()
+            filtered = []
+            for c in contacts:
+                name_match = q in str(c.get('name', '')).lower()
+                phone_match = q in str(c.get('phone', '')).lower()
+                email_match = q in str(c.get('email', '')).lower()
+                company_match = q in str(c.get('company', '')).lower()
+                aula_match = q in str(c.get('aula_nombre', '')).lower()
+                if name_match or phone_match or email_match or company_match or aula_match:
+                    filtered.append(c)
+            return filtered
+
+        return contacts
+    except Exception as e:
+        print(f"[CONTACT_STORE] list_contacts error: {e}")
+        return []
+
+
+def get_contact_by_phone(phone: str) -> dict | None:
+    """Busca un contacto por su número telefónico normalizado."""
+    norm_phone = normalize_phone_number(phone)
+    if not norm_phone:
+        return None
+    try:
+        client = _get_client()
+        res = client.table('contacts').select('*').eq('phone', norm_phone).is_('deleted_at', 'null').limit(1).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        print(f"[CONTACT_STORE] get_contact_by_phone error: {e}")
+        return None
+
+
+def get_contact_by_id(contact_id: int) -> dict | None:
+    """Busca un contacto por su ID numérico."""
+    try:
+        client = _get_client()
+        res = client.table('contacts').select('*').eq('id', contact_id).is_('deleted_at', 'null').limit(1).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        print(f"[CONTACT_STORE] get_contact_by_id error: {e}")
+        return None
+
+
+def upsert_contact_from_conversation(
+    phone: str,
+    name: str = None,
+    email: str = None,
+    company: str = None,
+    cargo: str = None,
+    ciudad: str = None,
+    aula_id: str = None,
+    aula_nombre: str = None
+) -> dict | None:
+    """
+    Crea o actualiza automáticamente una ficha de contacto cuando un usuario escribe
+    o cuando la API de Aulas provee datos del estudiante.
+    """
+    norm_phone = normalize_phone_number(phone)
+    if not norm_phone:
+        return None
+
+    try:
+        client = _get_client()
+        existing = get_contact_by_phone(norm_phone)
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        if existing:
+            # Actualizar solo si hay nuevos campos provistos
+            updates = {'updated_at': 'now()', 'deleted_at': None}
+            if name and name != norm_phone and existing.get('name') in [norm_phone, '', None, 'Estudiante']:
+                updates['name'] = name
+            elif name and existing.get('name') in [norm_phone, 'Estudiante']:
+                updates['name'] = name
+
+            if email and not existing.get('email'):
+                updates['email'] = email
+            if company and not existing.get('company'):
+                updates['company'] = company
+            if cargo and not existing.get('cargo'):
+                updates['cargo'] = cargo
+            if ciudad and not existing.get('ciudad'):
+                updates['ciudad'] = ciudad
+            if aula_id and not existing.get('aula_id'):
+                updates['aula_id'] = str(aula_id)
+            if aula_nombre and not existing.get('aula_nombre'):
+                updates['aula_nombre'] = aula_nombre
+
+            client.table('contacts').update(updates).eq('id', existing['id']).execute()
+            return {**existing, **updates}
+        else:
+            # Crear nuevo contacto automático
+            contact_name = name if (name and name != norm_phone) else norm_phone
+            new_payload = {
+                'phone': norm_phone,
+                'name': contact_name,
+                'email': email,
+                'company': company,
+                'cargo': cargo,
+                'ciudad': ciudad,
+                'aula_id': str(aula_id) if aula_id else None,
+                'aula_nombre': aula_nombre,
+                'created_at': now_iso,
+                'updated_at': now_iso,
+                'deleted_at': None
+            }
+            res = client.table('contacts').insert(new_payload).execute()
+            print(f"[CONTACT_STORE] Contacto creado automáticamente para {norm_phone} ({contact_name})")
+            return res.data[0] if res.data else new_payload
+
+    except Exception as e:
+        print(f"[CONTACT_STORE] upsert_contact_from_conversation error: {e}")
+        return None
+
+
+def create_contact(
+    phone: str,
+    name: str,
+    email: str = None,
+    company: str = None,
+    cargo: str = None,
+    ciudad: str = None,
+    aula_id: str = None,
+    aula_nombre: str = None
+) -> dict | None:
+    """Crea un contacto manualmente desde la interfaz web."""
+    norm_phone = normalize_phone_number(phone)
+    if not norm_phone or not name:
+        return None
+
+    try:
+        client = _get_client()
+        payload = {
+            'phone': norm_phone,
+            'name': name.strip(),
+            'email': email.strip() if email else None,
+            'company': company.strip() if company else None,
+            'cargo': cargo.strip() if cargo else None,
+            'ciudad': ciudad.strip() if ciudad else None,
+            'aula_id': str(aula_id).strip() if aula_id else None,
+            'aula_nombre': aula_nombre.strip() if aula_nombre else None,
+            'updated_at': 'now()',
+            'deleted_at': None
+        }
+        res = client.table('contacts').upsert(payload, on_conflict='phone').execute()
+        log_activity(None, 'CREATE_CONTACT', f"Contacto creado/actualizado: {norm_phone} ({name})")
+        return res.data[0] if res.data else payload
+    except Exception as e:
+        print(f"[CONTACT_STORE] create_contact error: {e}")
+        return None
+
+
+def update_contact(contact_id: int, data: dict) -> bool:
+    """Actualiza la información de un contacto existente por su ID."""
+    if not contact_id or not data:
+        return False
+
+    updates = {}
+    allowed_keys = ['name', 'email', 'company', 'cargo', 'ciudad', 'aula_id', 'aula_nombre', 'phone']
+    for k in allowed_keys:
+        if k in data:
+            if k == 'phone':
+                updates[k] = normalize_phone_number(data[k])
+            else:
+                updates[k] = str(data[k]).strip() if data[k] is not None else None
+
+    if not updates:
+        return False
+
+    updates['updated_at'] = 'now()'
+
+    try:
+        client = _get_client()
+        client.table('contacts').update(updates).eq('id', contact_id).execute()
+        log_activity(None, 'UPDATE_CONTACT', f"Contacto {contact_id} actualizado.")
+        return True
+    except Exception as e:
+        print(f"[CONTACT_STORE] update_contact error: {e}")
+        return False
+
+
+def delete_contact(contact_id: int) -> bool:
+    """Realiza Soft Delete marcando deleted_at en el contacto."""
+    try:
+        client = _get_client()
+        client.table('contacts').update({'deleted_at': 'now()'}).eq('id', contact_id).execute()
+        log_activity(None, 'DELETE_CONTACT', f"Contacto ID {contact_id} marcado como eliminado.")
+        return True
+    except Exception as e:
+        print(f"[CONTACT_STORE] delete_contact error: {e}")
+        return False

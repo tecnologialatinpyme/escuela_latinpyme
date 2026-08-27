@@ -45,9 +45,11 @@ CREATE TABLE IF NOT EXISTS messages (
     wa_sent             BOOLEAN DEFAULT TRUE,
     simulado            BOOLEAN DEFAULT FALSE,
     created_at          TIMESTAMPTZ DEFAULT NOW(),
-    deleted_at          TIMESTAMPTZ DEFAULT NULL
+    deleted_at          TIMESTAMPTZ DEFAULT NULL,
+    status              TEXT DEFAULT 'sent' CHECK (status IN ('sent', 'delivered', 'read', 'failed'))
 );
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS wa_message_id TEXT UNIQUE;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'sent';
 
 
 -- ── Tabla de registro de actividad ──
@@ -105,6 +107,22 @@ EXCEPTION
     WHEN OTHERS THEN NULL;
 END $$;
 
+-- ── Tabla de Contactos del Sistema ──
+CREATE TABLE IF NOT EXISTS contacts (
+    id          BIGSERIAL PRIMARY KEY,
+    phone       TEXT UNIQUE NOT NULL,
+    name        TEXT NOT NULL,
+    email       TEXT DEFAULT NULL,
+    company     TEXT DEFAULT NULL,
+    cargo       TEXT DEFAULT NULL,
+    ciudad      TEXT DEFAULT NULL,
+    aula_id     TEXT DEFAULT NULL,
+    aula_nombre TEXT DEFAULT NULL,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at  TIMESTAMPTZ DEFAULT NULL
+);
+
 -- ── Índices Parciales para Rendimiento y Escalabilidad ──
 CREATE INDEX IF NOT EXISTS idx_conversations_deleted_at ON conversations(deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_conversations_assigned_to ON conversations(assigned_to) WHERE deleted_at IS NULL;
@@ -114,6 +132,8 @@ CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users(deleted_at) WHERE delet
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_activity_log_user_ts ON activity_log(user_id, ts DESC);
 CREATE INDEX IF NOT EXISTS idx_ai_prompts_aula_id ON ai_prompts(aula_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_contacts_phone ON contacts(phone) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_contacts_deleted_at ON contacts(deleted_at) WHERE deleted_at IS NULL;
 
 -- ── Deshabilitar Row Level Security (RLS) para acceso con service key ──
 ALTER TABLE conversations DISABLE ROW LEVEL SECURITY;
@@ -122,6 +142,7 @@ ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE activity_log DISABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_prompts DISABLE ROW LEVEL SECURITY;
 ALTER TABLE ai_conversation_config DISABLE ROW LEVEL SECURITY;
+ALTER TABLE contacts DISABLE ROW LEVEL SECURITY;
 
 -- ── Confirmación ──
 SELECT 'Tablas, índices parciales y restricciones actualizados correctamente' AS resultado;

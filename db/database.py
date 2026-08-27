@@ -114,12 +114,12 @@ def load_store(include_deleted: bool = False) -> dict:
 
         # 1. Cargar conversaciones (con fallback si no existe el FK de users aún)
         try:
-            query = client.table('conversations').select('*, users(id, full_name, username)')
+            query = client.table('conversations').select('*, users(id, full_name, username)').order('updated_at', desc=True)
             if not include_deleted:
                 query = query.is_('deleted_at', 'null')
             conv_res = query.execute()
         except Exception:
-            query = client.table('conversations').select('*')
+            query = client.table('conversations').select('*').order('updated_at', desc=True)
             if not include_deleted:
                 query = query.is_('deleted_at', 'null')
             conv_res = query.execute()
@@ -170,13 +170,15 @@ def load_store(include_deleted: bool = False) -> dict:
                     messages_by_phone[p] = []
                 messages_by_phone[p].append({
                     "id": m.get('id'),
+                    "wa_message_id": m.get('wa_message_id'),
                     "direction": m.get('direction'),
                     "body": m.get('body'),
                     "ts": m.get('ts'),
                     "ia_generated": m.get('ia_generated', False),
                     "disparador": m.get('disparador'),
                     "wa_sent": m.get('wa_sent', True),
-                    "simulado": m.get('simulado', False)
+                    "simulado": m.get('simulado', False),
+                    "status": m.get('status', 'sent')
                 })
 
             # Asociar mensajes a cada conversación
@@ -205,7 +207,8 @@ def load_store(include_deleted: bool = False) -> dict:
                                 disparador=m.get('disparador'),
                                 wa_sent=m.get('wa_sent', True),
                                 simulado=m.get('simulado', False),
-                                msg_id=m.get('id')
+                                msg_id=m.get('id'),
+                                status=m.get('status', 'sent')
                             )
                         print(f"[DB] Auto-migrados {len(json_messages)} mensajes JSONB para {phone} a tabla messages.")
 
@@ -247,7 +250,8 @@ def add_message(
     wa_sent: bool = True,
     simulado: bool = False,
     msg_id: str = None,
-    wa_message_id: str = None
+    wa_message_id: str = None,
+    status: str = 'sent'
 ) -> dict:
     """
     Inserta un mensaje individual en la tabla normalizada 'messages'.
@@ -267,6 +271,7 @@ def add_message(
             'disparador': disparador,
             'wa_sent': wa_sent,
             'simulado': simulado,
+            'status': status,
             'deleted_at': None
         }
         if wa_id:
@@ -282,7 +287,26 @@ def add_message(
             print(f"[DB] Mensaje duplicado omitido (idempotencia webhook wa_message_id={wa_id})")
         else:
             print(f"[DB] Error insertando mensaje individual para {norm_phone}: {e}")
-        return {'conversation_phone': norm_phone, 'direction': direction, 'body': body}
+        return {'conversation_phone': norm_phone, 'direction': direction, 'body': body, 'status': status}
+
+
+def update_message_status(wa_message_id: str, status: str) -> bool:
+    """
+    Actualiza el estado del visto de WhatsApp ('sent', 'delivered', 'read', 'failed')
+    para un mensaje por su wa_message_id o id interno.
+    """
+    if not wa_message_id:
+        return False
+    try:
+        client = _get_client()
+        wa_str = str(wa_message_id)
+        res = client.table('messages').update({'status': status}).eq('wa_message_id', wa_str).execute()
+        if not res.data:
+            client.table('messages').update({'status': status}).eq('id', wa_str).execute()
+        return True
+    except Exception as e:
+        print(f"[DB] Error actualizando estado de mensaje {wa_message_id} a '{status}': {e}")
+        return False
 
 
 

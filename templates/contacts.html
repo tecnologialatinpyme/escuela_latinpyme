@@ -1,0 +1,521 @@
+{% extends "base.html" %}
+
+{% block title %}Directorio de Contactos — Escuela LatinPyme{% endblock %}
+
+{% block header_title %}Directorio de Contactos{% endblock %}
+
+{% block header_badges %}
+<span class="bg-indigo-50 text-indigo-700 text-xs px-3 py-1 rounded-full font-semibold border border-indigo-100 flex items-center gap-1.5">
+    <i class="fa-solid fa-address-book text-indigo-500"></i>
+    Gestión de Prospectos y Estudiantes
+</span>
+{% endblock %}
+
+{% block content %}
+<div class="p-6 space-y-6 max-w-7xl mx-auto">
+
+    <!-- BARRA SUPERIOR Y ESTADÍSTICAS -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <!-- Card 1: Total Contactos -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:shadow-md transition">
+            <div class="w-12 h-12 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center text-xl shrink-0 font-bold">
+                <i class="fa-solid fa-users"></i>
+            </div>
+            <div>
+                <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Contactos</p>
+                <h3 id="stat-total" class="text-2xl font-extrabold text-slate-800">0</h3>
+            </div>
+        </div>
+
+        <!-- Card 2: Con Correo Electrónico -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:shadow-md transition">
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0 font-bold">
+                <i class="fa-solid fa-envelope"></i>
+            </div>
+            <div>
+                <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Con Correo Registrado</p>
+                <h3 id="stat-email" class="text-2xl font-extrabold text-slate-800">0</h3>
+            </div>
+        </div>
+
+        <!-- Card 3: Vinculados a Aulas -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:shadow-md transition">
+            <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0 font-bold">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <div>
+                <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Vinculados a Aulas</p>
+                <h3 id="stat-aula" class="text-2xl font-extrabold text-slate-800">0</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENEDOR PRINCIPAL TABLA + BUSCADOR -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+
+        <!-- CABECERA DE LA TABLA -->
+        <div class="p-5 border-b border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-50/50">
+            <div class="relative w-full md:w-96">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                <input type="text" id="search-input" onkeyup="handleSearch()"
+                    placeholder="Buscar por nombre, teléfono, email, empresa..."
+                    class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition shadow-sm">
+            </div>
+
+            <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+                <button onclick="loadContacts()" title="Recargar lista"
+                    class="p-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-semibold transition flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span class="hidden sm:inline">Actualizar</span>
+                </button>
+
+                <button onclick="openCreateModal()"
+                    class="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>Nuevo Contacto</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- TABLA DE CONTACTOS -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-100/70 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        <th class="py-3.5 px-5">Contacto</th>
+                        <th class="py-3.5 px-5">Correo Electrónico</th>
+                        <th class="py-3.5 px-5">Empresa / Cargo</th>
+                        <th class="py-3.5 px-5">Aula Virtual</th>
+                        <th class="py-3.5 px-5">Última Actividad</th>
+                        <th class="py-3.5 px-5 text-right">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="contacts-table-body" class="divide-y divide-slate-100 text-xs">
+                    <!-- Filas pobladas dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ESTADO VACÍO -->
+        <div id="empty-state" class="hidden p-12 text-center text-slate-400 space-y-3">
+            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400 text-2xl">
+                <i class="fa-solid fa-address-book"></i>
+            </div>
+            <p class="font-semibold text-slate-600 text-sm">No se encontraron contactos</p>
+            <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                Los contactos se registrarán automáticamente cuando las personas escriban por WhatsApp o puedes agregar uno manualmente.
+            </p>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- MODAL — CREAR / EDITAR CONTACTO -->
+<!-- ════════════════════════════════════════════════ -->
+<div id="contact-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-fadeIn">
+        <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+            <h3 id="modal-title" class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <i class="fa-solid fa-user-pen text-brand-600"></i>
+                <span>Nuevo Contacto</span>
+            </h3>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <form id="contact-form" onsubmit="saveContact(event)" class="p-6 space-y-4">
+            <input type="hidden" id="form-contact-id" value="">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Nombre Completo *</label>
+                    <input type="text" id="form-name" required placeholder="Ej: Andrés Mendoza"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Teléfono (WhatsApp) *</label>
+                    <input type="text" id="form-phone" required placeholder="Ej: +573144187269"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Correo Electrónico</label>
+                <input type="email" id="form-email" placeholder="andres@ejemplo.com"
+                    class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Empresa / Patrocinador</label>
+                    <input type="text" id="form-company" placeholder="Ej: LatinPyme / Equidad ARL"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Cargo / Puesto</label>
+                    <input type="text" id="form-cargo" placeholder="Ej: Gerente Comercial"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Ciudad</label>
+                    <input type="text" id="form-ciudad" placeholder="Ej: Bogotá"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">ID Aula Virtual</label>
+                    <input type="text" id="form-aula-id" placeholder="Ej: 115"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">Nombre del Aula Virtual</label>
+                <input type="text" id="form-aula-nombre" placeholder="Ej: Aula Capacitación Equidad ARL"
+                    class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition">
+            </div>
+
+            <div class="pt-3 border-t border-slate-200 flex justify-end gap-3">
+                <button type="button" onclick="closeModal()"
+                    class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">
+                    Cancelar
+                </button>
+                <button type="submit"
+                    class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl transition shadow-sm">
+                    Guardar Contacto
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- MODAL — FICHA DETALLADA DEL CONTACTO -->
+<!-- ════════════════════════════════════════════════ -->
+<div id="details-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-fadeIn">
+        <div class="p-6 text-center border-b border-slate-100 bg-slate-50/80 relative">
+            <button onclick="closeDetailsModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div id="detail-avatar" class="w-16 h-16 rounded-full bg-brand-600 text-white font-extrabold text-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-brand-500/20">
+                AM
+            </div>
+            <h3 id="detail-name" class="font-bold text-slate-900 text-base">Nombre del Contacto</h3>
+            <p id="detail-phone" class="text-xs font-mono text-slate-500 font-semibold mt-0.5">+57 314 4187269</p>
+        </div>
+
+        <div class="p-6 space-y-3.5 text-xs text-slate-700">
+            <div class="flex items-center justify-between py-1.5 border-b border-slate-100">
+                <span class="text-slate-400 font-medium"><i class="fa-solid fa-envelope mr-2 text-brand-500"></i>Correo:</span>
+                <span id="detail-email" class="font-semibold text-slate-800">No registrado</span>
+            </div>
+
+            <div class="flex items-center justify-between py-1.5 border-b border-slate-100">
+                <span class="text-slate-400 font-medium"><i class="fa-solid fa-building mr-2 text-brand-500"></i>Empresa:</span>
+                <span id="detail-company" class="font-semibold text-slate-800">No registrada</span>
+            </div>
+
+            <div class="flex items-center justify-between py-1.5 border-b border-slate-100">
+                <span class="text-slate-400 font-medium"><i class="fa-solid fa-briefcase mr-2 text-brand-500"></i>Cargo:</span>
+                <span id="detail-cargo" class="font-semibold text-slate-800">No especificado</span>
+            </div>
+
+            <div class="flex items-center justify-between py-1.5 border-b border-slate-100">
+                <span class="text-slate-400 font-medium"><i class="fa-solid fa-location-dot mr-2 text-brand-500"></i>Ciudad:</span>
+                <span id="detail-ciudad" class="font-semibold text-slate-800">No registrada</span>
+            </div>
+
+            <div class="flex items-center justify-between py-1.5 border-b border-slate-100">
+                <span class="text-slate-400 font-medium"><i class="fa-solid fa-graduation-cap mr-2 text-brand-500"></i>Aula Virtual:</span>
+                <span id="detail-aula" class="font-semibold text-slate-800">Ninguna</span>
+            </div>
+        </div>
+
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+            <a id="detail-chat-link" href="#" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl text-center transition flex items-center justify-center gap-2">
+                <i class="fa-brands fa-whatsapp text-sm"></i>
+                Abrir Chat WhatsApp
+            </a>
+            <button onclick="closeDetailsModal()" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-xl transition">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let contactsData = [];
+let searchTimer = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadContacts();
+});
+
+async function loadContacts(query = '') {
+    try {
+        const url = query ? `/contacts/api?q=${encodeURIComponent(query)}` : '/contacts/api';
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (data.exito) {
+            contactsData = data.contacts || [];
+            updateStats(data.stats || {});
+            renderContactsTable(contactsData);
+        }
+    } catch (e) {
+        console.error('Error cargando contactos:', e);
+    }
+}
+
+function updateStats(stats) {
+    document.getElementById('stat-total').textContent = stats.total || contactsData.length;
+    document.getElementById('stat-email').textContent = stats.with_email || 0;
+    document.getElementById('stat-aula').textContent = stats.with_aula || 0;
+}
+
+function handleSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        const q = document.getElementById('search-input').value;
+        loadContacts(q);
+    }, 300);
+}
+
+function renderContactsTable(list) {
+    const tbody = document.getElementById('contacts-table-body');
+    const emptyState = document.getElementById('empty-state');
+
+    if (!list || list.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+    }
+
+    emptyState.classList.add('hidden');
+
+    tbody.innerHTML = list.map(c => {
+        const avatar = (c.name ? c.name.substring(0, 2) : 'CT').toUpperCase();
+        const updatedDate = c.updated_at ? new Date(c.updated_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+
+        return `
+        <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+            <td class="py-3.5 px-5">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-full bg-slate-800 text-white font-bold text-xs flex items-center justify-center shrink-0" style="background: ${avatarColor(c.name)}">
+                        ${escapeHtml(avatar)}
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-800 leading-tight">${escapeHtml(c.name)}</p>
+                        <p class="font-mono text-[11px] text-slate-400">${escapeHtml(c.phone)}</p>
+                    </div>
+                </div>
+            </td>
+
+            <td class="py-3.5 px-5 text-slate-600">
+                ${c.email ? `<span class="flex items-center gap-1.5"><i class="fa-regular fa-envelope text-slate-400"></i> ${escapeHtml(c.email)}</span>` : '<span class="text-slate-400 italic">No registrado</span>'}
+            </td>
+
+            <td class="py-3.5 px-5">
+                <p class="font-semibold text-slate-700">${escapeHtml(c.company || '—')}</p>
+                ${c.cargo ? `<p class="text-[10px] text-slate-400">${escapeHtml(c.cargo)}</p>` : ''}
+            </td>
+
+            <td class="py-3.5 px-5">
+                ${c.aula_nombre ? `<span class="bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] font-bold px-2.5 py-1 rounded-lg inline-block"><i class="fa-solid fa-graduation-cap mr-1"></i>${escapeHtml(c.aula_nombre)}</span>` : '<span class="text-slate-400 text-[11px]">Ninguna</span>'}
+            </td>
+
+            <td class="py-3.5 px-5 text-slate-400 text-[11px]">
+                ${updatedDate}
+            </td>
+
+            <td class="py-3.5 px-5 text-right space-x-1">
+                <button onclick="viewContactDetails(${c.id})" title="Ver Ficha" class="p-1.5 hover:bg-slate-200 text-slate-600 rounded-lg transition">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
+                <button onclick="openEditModal(${c.id})" title="Editar Contacto" class="p-1.5 hover:bg-slate-200 text-indigo-600 rounded-lg transition">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button onclick="confirmDeleteContact(${c.id}, '${escapeHtml(c.name)}')" title="Eliminar" class="p-1.5 hover:bg-rose-100 text-rose-600 rounded-lg transition">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </td>
+        </tr>
+        `;
+    }).join('');
+}
+
+function avatarColor(name) {
+    const colors = ['#4f46e5', '#2563eb', '#0d9488', '#059669', '#d97706', '#dc2626', '#7c3aed'];
+    let hash = 0;
+    for (let i = 0; i < (name || '').length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+// ════════════════════════════════════════════════
+// MODAL CREAR / EDITAR
+// ════════════════════════════════════════════════
+function openCreateModal() {
+    document.getElementById('modal-title').innerHTML = `<i class="fa-solid fa-user-plus text-brand-600"></i> <span>Nuevo Contacto</span>`;
+    document.getElementById('contact-form').reset();
+    document.getElementById('form-contact-id').value = '';
+    document.getElementById('contact-modal').classList.replace('hidden', 'flex');
+}
+
+function openEditModal(contactId) {
+    const contact = contactsData.find(c => c.id === contactId);
+    if (!contact) return;
+
+    document.getElementById('modal-title').innerHTML = `<i class="fa-solid fa-user-pen text-brand-600"></i> <span>Editar Contacto</span>`;
+    document.getElementById('form-contact-id').value = contact.id;
+    document.getElementById('form-name').value = contact.name || '';
+    document.getElementById('form-phone').value = contact.phone || '';
+    document.getElementById('form-email').value = contact.email || '';
+    document.getElementById('form-company').value = contact.company || '';
+    document.getElementById('form-cargo').value = contact.cargo || '';
+    document.getElementById('form-ciudad').value = contact.ciudad || '';
+    document.getElementById('form-aula-id').value = contact.aula_id || '';
+    document.getElementById('form-aula-nombre').value = contact.aula_nombre || '';
+
+    document.getElementById('contact-modal').classList.replace('hidden', 'flex');
+}
+
+function closeModal() {
+    document.getElementById('contact-modal').classList.replace('flex', 'hidden');
+}
+
+async function saveContact(e) {
+    e.preventDefault();
+    const contactId = document.getElementById('form-contact-id').value;
+
+    const payload = {
+        name: document.getElementById('form-name').value,
+        phone: document.getElementById('form-phone').value,
+        email: document.getElementById('form-email').value,
+        company: document.getElementById('form-company').value,
+        cargo: document.getElementById('form-cargo').value,
+        ciudad: document.getElementById('form-ciudad').value,
+        aula_id: document.getElementById('form-aula-id').value,
+        aula_nombre: document.getElementById('form-aula-nombre').value
+    };
+
+    const isEdit = !!contactId;
+    const url = isEdit ? `/contacts/api/update/${contactId}` : '/contacts/api/create';
+    const method = isEdit ? 'PUT' : 'POST';
+
+    try {
+        const res = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (data.exito) {
+            closeModal();
+            Swal.fire({
+                icon: 'success',
+                title: isEdit ? '¡Contacto actualizado!' : '¡Contacto creado!',
+                text: data.mensaje || 'Operación realizada con éxito.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            loadContacts();
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'No se pudo guardar el contacto.' });
+        }
+    } catch (err) {
+        Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo conectar con el servidor.' });
+    }
+}
+
+// ════════════════════════════════════════════════
+// FICHA DETALLADA DEL CONTACTO
+// ════════════════════════════════════════════════
+function viewContactDetails(contactId) {
+    const contact = contactsData.find(c => c.id === contactId);
+    if (!contact) return;
+
+    document.getElementById('detail-name').textContent = contact.name || 'Sin nombre';
+    document.getElementById('detail-phone').textContent = contact.phone || '—';
+    document.getElementById('detail-avatar').textContent = (contact.name ? contact.name.substring(0, 2) : 'CT').toUpperCase();
+    document.getElementById('detail-avatar').style.background = avatarColor(contact.name);
+
+    document.getElementById('detail-email').textContent = contact.email || 'No registrado';
+    document.getElementById('detail-company').textContent = contact.company || 'No registrada';
+    document.getElementById('detail-cargo').textContent = contact.cargo || 'No especificado';
+    document.getElementById('detail-ciudad').textContent = contact.ciudad || 'No registrada';
+
+    const aulaStr = contact.aula_nombre ? `${contact.aula_nombre} (${contact.aula_id || 'N/A'})` : 'Ninguna';
+    document.getElementById('detail-aula').textContent = aulaStr;
+
+    document.getElementById('detail-chat-link').href = `/conversations?phone=${encodeURIComponent(contact.phone)}`;
+
+    document.getElementById('details-modal').classList.replace('hidden', 'flex');
+}
+
+function closeDetailsModal() {
+    document.getElementById('details-modal').classList.replace('flex', 'hidden');
+}
+
+// ════════════════════════════════════════════════
+// ELIMINAR CONTACTO (Soft Delete)
+// ════════════════════════════════════════════════
+function confirmDeleteContact(contactId, name) {
+    Swal.fire({
+        title: '¿Eliminar contacto?',
+        text: `¿Estás seguro de eliminar a "${name}" del directorio?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e30613',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                const res = await fetch(`/contacts/api/delete/${contactId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.exito) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Eliminado',
+                        text: 'El contacto ha sido removido del directorio.',
+                        timer: 1800,
+                        showConfirmButton: false
+                    });
+                    loadContacts();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: data.error || 'No se pudo eliminar.' });
+                }
+            } catch (e) {
+                Swal.fire({ icon: 'error', title: 'Error de conexión', text: 'Ocurrió un error al intentar eliminar.' });
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

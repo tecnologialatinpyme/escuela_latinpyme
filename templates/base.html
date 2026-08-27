@@ -89,6 +89,11 @@
                     <span class="sidebar-text whitespace-nowrap">Conversaciones</span>
                 </a>
 
+                <a href="/contacts" id="nav-contacts" title="Contactos" class="flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/contacts') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
+                    <i class="fa-solid fa-address-book text-lg shrink-0 {% if request.path.startswith('/contacts') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
+                    <span class="sidebar-text whitespace-nowrap">Contactos</span>
+                </a>
+
                 <a href="/ai-assistant" id="nav-ai-assistant" title="Asistente IA" class="flex items-center gap-3 px-3.5 py-3 rounded-lg text-sm font-medium transition duration-200 group {% if request.path.startswith('/ai-assistant') %} bg-brand-600 text-white shadow-lg shadow-brand-500/20 {% else %} hover:bg-brand-600 hover:text-white {% endif %}">
                     <i class="fa-solid fa-robot text-lg shrink-0 {% if request.path.startswith('/ai-assistant') %} text-white {% else %} text-slate-700 group-hover:text-white {% endif %}"></i>
                     <span class="sidebar-text whitespace-nowrap">Asistente IA</span>

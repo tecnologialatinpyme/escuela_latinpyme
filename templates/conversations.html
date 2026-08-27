@@ -168,10 +168,14 @@
         color: #8d9dad;
         white-space: nowrap;
     }
-    .msg-out .msg-ts { color: #6aaa56; }
+    .msg-out .msg-ts { color: #8d9dad; }
 
-    /* Checks de lectura */
-    .msg-ticks { margin-left: 2px; color: #6aaa56; font-size: 10px; }
+    /* Checks de lectura y visto de WhatsApp */
+    .msg-ticks { margin-left: 3px; font-size: 11px; font-weight: bold; letter-spacing: -1px; }
+    .msg-ticks-sent { color: #8d9dad; }        /* Un chulo gris: Enviado */
+    .msg-ticks-delivered { color: #8d9dad; }   /* Doble chulo gris: Entregado (o listo si modo lectura desactivado) */
+    .msg-ticks-read { color: #53bdeb; }        /* Doble chulo AZUL OFICIAL WHATSAPP: Leído / Visto */
+    .msg-ticks-failed { color: #ef4444; font-weight: 900; } /* Error de envío */
 
     /* Área de entrada */
     .chat-input-area {
@@ -833,6 +837,26 @@ function renderChatList(chats) {
         filtered = filtered.filter(c => !c.human_required);
     }
 
+    // Función para obtener timestamp numérico y ordenar la lista con el más reciente al inicio
+    function getSortTimestamp(rawTs) {
+        if (!rawTs) return 0;
+        const str = String(rawTs).trim();
+        if (!str) return 0;
+        if (/^\d{1,2}:\d{2}$/.test(str)) {
+            const parts = str.split(':');
+            const d = new Date();
+            d.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+            return d.getTime();
+        }
+        const date = new Date(str);
+        if (!isNaN(date.getTime())) {
+            return date.getTime();
+        }
+        return 0;
+    }
+
+    filtered.sort((a, b) => getSortTimestamp(b.last_ts) - getSortTimestamp(a.last_ts));
+
     const container = document.getElementById('chat-list');
 
     if (filtered.length === 0) {
@@ -982,6 +1006,21 @@ function renderMessages(messages, activeChat) {
             lastDateStr = msgDateStr;
         }
 
+        // Helper para renderizar los chulos de visto de WhatsApp
+        const getTicksHtml = (msg) => {
+            if (msg.direction !== 'out') return '';
+            const st = msg.status || (msg.wa_sent ? 'delivered' : 'sent');
+            if (st === 'read') {
+                return '<span class="msg-ticks msg-ticks-read" title="Leído (Visto azul)">✓✓</span>';
+            } else if (st === 'delivered') {
+                return '<span class="msg-ticks msg-ticks-delivered" title="Entregado">✓✓</span>';
+            } else if (st === 'failed') {
+                return '<span class="msg-ticks msg-ticks-failed" title="Error de entrega">!</span>';
+            } else {
+                return '<span class="msg-ticks msg-ticks-sent" title="Enviado">✓</span>';
+            }
+        };
+
         html += `
             ${isHumanTrigger ? `
                 <div class="my-2 py-1.5 px-3 bg-rose-50 text-rose-800 text-[11px] font-semibold rounded-xl border border-rose-200 text-center flex items-center justify-center gap-1.5 self-center max-w-sm font-['Outfit']">
@@ -993,7 +1032,7 @@ function renderMessages(messages, activeChat) {
                 ${escapeHtml(m.body)}
                 <span class="msg-ts">
                     ${timeStr}
-                    ${m.direction === 'out' ? '<span class="msg-ticks">✓✓</span>' : ''}
+                    ${getTicksHtml(m)}
                 </span>
             </div>
         `;

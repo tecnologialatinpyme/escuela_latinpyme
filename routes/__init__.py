@@ -2,6 +2,7 @@ from .dashboard import dashboard_bp
 from .datacenter import datacenter_bp
 from .campaigns import campaigns_bp
 from .conversations import conversations_bp
+from .contacts import contacts_bp
 from .settings import settings_bp
 from .auth import auth_bp
 from .admin import admin_bp
@@ -15,6 +16,7 @@ ALL_BLUEPRINTS = [
     (datacenter_bp,    '/datacenter'),
     (campaigns_bp,     '/campaigns'),
     (conversations_bp, '/conversations'),
+    (contacts_bp,      '/contacts'),
     (settings_bp,      '/settings'),
     (ai_assistant_bp,  '/ai-assistant'),
 ]

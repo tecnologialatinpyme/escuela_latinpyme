@@ -95,19 +95,31 @@ def webhook_receive():
             for change in entry.get('changes', []):
                 value = change.get('value', {})
 
-                # Procesar status updates para capturar numero real del destinatario
-                for status in value.get('statuses', []):
-                    recipient_id = status.get('recipient_id', '')
-                    if not recipient_id:
-                        continue
-                    real_phone = '+' + recipient_id if not recipient_id.startswith('+') else recipient_id
-                    for key, conv in list(conversations_store.items()):
-                        if not key.startswith('+') and not conv.get('real_phone') and not conv.get('wa_id'):
-                            conv['wa_id'] = recipient_id
-                            conv['real_phone'] = real_phone
-                        elif conv.get('wa_id') == recipient_id or conv.get('real_phone') == real_phone:
-                            conv['wa_id'] = recipient_id
-                            conv['real_phone'] = real_phone
+                # Procesar status updates de Meta (visto de WhatsApp: sent, delivered, read, failed)
+                for status_obj in value.get('statuses', []):
+                    recipient_id = status_obj.get('recipient_id', '')
+                    wa_msg_id    = status_obj.get('id', '')
+                    msg_status   = status_obj.get('status', '')  # 'sent', 'delivered', 'read', 'failed'
+
+                    if recipient_id:
+                        real_phone = '+' + recipient_id if not recipient_id.startswith('+') else recipient_id
+                        for key, conv in list(conversations_store.items()):
+                            if not key.startswith('+') and not conv.get('real_phone') and not conv.get('wa_id'):
+                                conv['wa_id'] = recipient_id
+                                conv['real_phone'] = real_phone
+                            elif conv.get('wa_id') == recipient_id or conv.get('real_phone') == real_phone:
+                                conv['wa_id'] = recipient_id
+                                conv['real_phone'] = real_phone
+
+                    # Actualizar estado de visto (sent, delivered, read, failed)
+                    if wa_msg_id and msg_status:
+                        for p_key, conv_item in conversations_store.items():
+                            for m in conv_item.get('messages', []):
+                                if m.get('id') == wa_msg_id or m.get('wa_message_id') == wa_msg_id:
+                                    m['status'] = msg_status
+                                    break
+                        db.update_message_status(wa_msg_id, msg_status)
+                        current_app.logger.info(f"[WEBHOOK] Visto WhatsApp actualizado ({wa_msg_id} -> {msg_status})")
 
                 # Procesar mensajes entrantes
                 for msg in value.get('messages', []):
@@ -165,6 +177,16 @@ def webhook_receive():
                             conversations_store[phone_key]["name"] = name
                         if wa_id:
                             conversations_store[phone_key]["wa_id"] = wa_id
+
+                    # Registrar/actualizar automáticamente en el Módulo de Contactos
+                    try:
+                        from db import contact_store
+                        contact_store.upsert_contact_from_conversation(
+                            phone=phone_key,
+                            name=name if name != display_phone else None
+                        )
+                    except Exception as c_err:
+                        current_app.logger.warning(f"[WEBHOOK] Error auto-guardando contacto {phone_key}: {c_err}")
 
                     new_msg = {
                         "id": msg_id,
@@ -272,16 +294,21 @@ def _trigger_ai_reply(phone_key: str, conv: dict) -> None:
         wa_result = wa.enviar_mensaje_texto(send_to, respuesta_texto)
 
         # Guardar la respuesta de la IA en el store
+        meta_msg_id = wa_result.get('message_id') or str(uuid.uuid4())
+        initial_status = 'sent' if wa_result.get('exito') else 'failed'
+
         ai_msg = {
-            'id':           str(uuid.uuid4()),
+            'id':           meta_msg_id,
+            'wa_message_id': meta_msg_id,
             'direction':    'out',
             'body':         respuesta_texto,
             'ts':           _now_ts(),
             'ia_generated': True,
             'disparador':   disparador,
             'wa_sent':      wa_result.get('exito', False),
-            'aula_info':    resultado.get('aula_info', {}),
-            'simulado':     resultado.get('modo_simulacion', False)
+            'simulado':     resultado.get('modo_simulacion', False),
+            'status':       initial_status,
+            'aula_info':    resultado.get('aula_info', {})
         }
         conv['messages'].append(ai_msg)
         conv['last_message'] = respuesta_texto
@@ -290,7 +317,8 @@ def _trigger_ai_reply(phone_key: str, conv: dict) -> None:
         db.add_message(
             phone=phone_key, direction='out', body=respuesta_texto, ts=ai_msg['ts'],
             ia_generated=True, disparador=disparador, wa_sent=ai_msg['wa_sent'],
-            simulado=ai_msg['simulado'], msg_id=ai_msg['id']
+            simulado=ai_msg['simulado'], msg_id=meta_msg_id, wa_message_id=meta_msg_id,
+            status=initial_status
         )
 
         from flask import current_app
@@ -338,6 +366,20 @@ def api_user_aula_info():
         if aula_info.get('nombre_usuario') and aula_info['nombre_usuario'] != 'Estudiante':
             conv_data['name'] = aula_info['nombre_usuario']
         _save_one(phone, conv_data)
+
+    # Actualizar la ficha en el Módulo de Contactos con los datos enriquecidos del Aula
+    try:
+        from db import contact_store
+        contact_store.upsert_contact_from_conversation(
+            phone=phone,
+            name=aula_info.get('nombre_usuario') if (aula_info.get('nombre_usuario') and aula_info.get('nombre_usuario') != 'Estudiante') else conv_data.get('name'),
+            email=aula_info.get('email_usuario'),
+            company=aula_info.get('empresa_patrocinadora'),
+            aula_id=aula_info.get('space_id') or aula_info.get('aula_id'),
+            aula_nombre=aula_info.get('aula_nombre')
+        )
+    except Exception as c_err:
+        print(f"[API-AULA-INFO] Error auto-actualizando contacto: {c_err}")
 
     ai_cfg = get_ai_conversation_config(phone)
     ai_enabled = ai_cfg.get('ai_enabled', True) if ai_cfg else True
@@ -391,6 +433,30 @@ def api_get_messages():
             "last_trigger":   data.get("last_trigger", ""),
             "ai_enabled":     ai_enabled
         })
+
+    # Ordenar los chats por fecha/hora de la última actividad (más reciente de primeras)
+    def _parse_ts_sort(c):
+        ts_val = c.get('last_ts') or ''
+        ts_str = str(ts_val).strip()
+        if not ts_str:
+            return 0.0
+        try:
+            dt = datetime.fromisoformat(ts_str.replace('Z', '+00:00'))
+            return dt.timestamp()
+        except Exception:
+            pass
+        if ':' in ts_str and len(ts_str) <= 8:
+            try:
+                parts = ts_str.split(':')
+                h, m = int(parts[0]), int(parts[1])
+                now = datetime.now(timezone.utc)
+                dt = now.replace(hour=h, minute=m, second=0, microsecond=0)
+                return dt.timestamp()
+            except Exception:
+                pass
+        return 0.0
+
+    chat_list.sort(key=_parse_ts_sort, reverse=True)
 
 
     if phone and phone in conversations_store:
@@ -529,26 +595,61 @@ def api_send_message():
         wa_result = {"exito": False, "error": str(e)}
 
     # ── Guardar siempre en el store local ──
+    meta_msg_id = wa_result.get("message_id") or str(uuid.uuid4())
+    initial_status = "sent" if wa_result.get("exito") else "failed"
+
     new_msg = {
-        "id": str(uuid.uuid4()),
+        "id": meta_msg_id,
+        "wa_message_id": meta_msg_id,
         "direction": "out",
         "body": body,
         "ts": _now_ts(),
         "wa_sent": wa_result.get("exito", False),
-        "simulado": wa_result.get("simulado", False)
+        "simulado": wa_result.get("simulado", False),
+        "status": initial_status
     }
     conv["messages"].append(new_msg)
     conv["last_message"] = body
     conv["last_ts"] = _now_ts()
     _save_one(phone, conv)
     db.add_message(phone=phone, direction="out", body=body, ts=new_msg["ts"],
-                    wa_sent=new_msg["wa_sent"], simulado=new_msg["simulado"], msg_id=new_msg["id"])
+                    wa_sent=new_msg["wa_sent"], simulado=new_msg["simulado"], msg_id=meta_msg_id,
+                    wa_message_id=meta_msg_id, status=initial_status)
 
     return jsonify({
         "status": "sent",
         "message": new_msg,
         "whatsapp": wa_result
     }), 200
+
+
+# ──────────────────────────────────────────────
+# API — Simular visto de WhatsApp (sent -> delivered -> read)
+# ──────────────────────────────────────────────
+@conversations_bp.route('/api/simular-visto', methods=['POST'])
+@login_required
+def api_simular_visto():
+    """
+    Endpoint de pruebas para simular cambio de estado de visto (sent, delivered, read, failed).
+    Recibe JSON: { "msg_id": "wamid...", "status": "read" }
+    """
+    data   = request.get_json(silent=True) or {}
+    msg_id = data.get('msg_id', '').strip()
+    status = data.get('status', 'read').strip()
+
+    if not msg_id:
+        return jsonify({"error": "Falta el campo msg_id"}), 400
+
+    updated = False
+    for p_key, conv in conversations_store.items():
+        for m in conv.get('messages', []):
+            if m.get('id') == msg_id or m.get('wa_message_id') == msg_id:
+                m['status'] = status
+                updated = True
+                break
+
+    db.update_message_status(msg_id, status)
+    return jsonify({"exito": True, "msg_id": msg_id, "status": status, "updated_in_memory": updated}), 200
 
 
 # ──────────────────────────────────────────────
