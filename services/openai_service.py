@@ -21,6 +21,33 @@ class OpenAIService:
             print(f"Error al inicializar el cliente OpenAI: {e}")
             return None
 
+    def transcribe_audio(self, file_path: str) -> str:
+        """
+        Transcribe un archivo de audio / nota de voz a texto en español usando OpenAI Whisper API.
+        """
+        client = self._get_client()
+        if not client:
+            print("[OPENAI-WHISPER] No hay cliente OpenAI configurado para transcripción.")
+            return ""
+        try:
+            import os
+            if not os.path.exists(file_path):
+                print(f"[OPENAI-WHISPER] Archivo de audio no encontrado: {file_path}")
+                return ""
+
+            with open(file_path, "rb") as audio_file:
+                transcript = client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    language="es"
+                )
+                text = transcript.text.strip() if hasattr(transcript, 'text') else str(transcript)
+                print(f"[OPENAI-WHISPER] Transcripción exitosa ({len(text)} caracteres): {text[:60]}...")
+                return text
+        except Exception as e:
+            print(f"[OPENAI-WHISPER] Error en transcripción Whisper: {e}")
+            return ""
+
     def analizar_perfil(self, nombre_curso: str, audiencia_curso: str, nombre_completo: str, cargo: str, profesion: str) -> dict:
         """
         Evalúa mediante GPT-4o-mini si un perfil califica como candidato ideal.

@@ -545,8 +545,27 @@
                 {# Poblado dinámicamente #}
             </div>
 
+            <!-- Previsualización de archivo adjunto seleccionado -->
+            <div id="media-preview-container" class="hidden bg-slate-100 p-3 border-t border-slate-200 items-center justify-between gap-3 text-xs flex-shrink-0">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div id="media-preview-icon" class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg flex-shrink-0">
+                        <i class="fa-solid fa-file"></i>
+                    </div>
+                    <div class="truncate">
+                        <span id="media-preview-name" class="font-bold text-slate-800 block truncate">archivo.pdf</span>
+                        <span id="media-preview-type" class="text-[10px] text-slate-500 uppercase">Documento</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <button type="button" onclick="cancelMediaUpload()" class="text-slate-400 hover:text-rose-500 transition text-sm p-1.5 rounded-lg hover:bg-slate-200">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
             <div class="chat-input-area">
-                <button class="text-slate-400 hover:text-brand-500 transition text-lg" title="Adjuntar archivo">
+                <input type="file" id="media-file-input" class="hidden" accept="image/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx" onchange="handleMediaSelect(event)">
+                <button type="button" onclick="document.getElementById('media-file-input').click()" class="text-slate-400 hover:text-brand-500 transition text-lg p-1.5 rounded-lg hover:bg-slate-100" title="Adjuntar imagen, audio o documento">
                     <i class="fa-solid fa-paperclip"></i>
                 </button>
                 <textarea id="chat-input" class="chat-input-box" rows="1" placeholder="Escribe un mensaje..."></textarea>
@@ -1017,6 +1036,55 @@ function renderMessages(messages, activeChat) {
             }
         };
 
+        // Helper para renderizar contenido multimedia (Imagen, Audio con Transcripción Whisper, Documento)
+        let bodyHtml = escapeHtml(m.body || '');
+
+        if (m.media_type === 'image' || (m.media_url && /\.(jpg|jpeg|png|webp|gif)$/i.test(m.media_url))) {
+            bodyHtml = `
+                <div class="mb-1">
+                    <img src="${m.media_url}" class="rounded-lg max-w-xs max-h-60 object-cover cursor-pointer shadow-sm hover:opacity-95 transition" onclick="window.open('${m.media_url}', '_blank')">
+                </div>
+                ${m.body && !m.body.startsWith('📷') ? `<p class="mt-1">${escapeHtml(m.body)}</p>` : ''}
+            `;
+        } else if (m.media_type === 'audio' || (m.media_url && /\.(ogg|opus|mp3|wav|m4a)$/i.test(m.media_url))) {
+            const transcriptText = m.transcription || (m.body && m.body.includes('Audio transcribido') ? m.body.replace('🎤 [Audio transcribido]:', '').trim() : null);
+            bodyHtml = `
+                <div class="flex flex-col gap-1.5 my-1 p-2 bg-slate-100/90 rounded-xl border border-slate-200/80 max-w-xs">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-microphone text-brand-600 text-lg"></i>
+                        <audio controls class="w-full h-8 text-xs outline-none" src="${m.media_url}"></audio>
+                    </div>
+                    ${transcriptText ? `
+                        <div class="text-[11px] text-slate-700 font-medium italic bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-brand-600 block not-italic mb-0.5"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Transcripción IA Whisper:</span>
+                            "${escapeHtml(transcriptText)}"
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } else if (m.media_type === 'document' || (m.media_url && /\.(pdf|doc|docx|xls|xlsx)$/i.test(m.media_url))) {
+            const filename = m.filename || (m.media_url ? m.media_url.split('/').pop() : 'Archivo Adjunto');
+            bodyHtml = `
+                <a href="${m.media_url}" target="_blank" download class="flex items-center gap-3 p-2.5 bg-slate-100 hover:bg-slate-200/80 rounded-xl border border-slate-200 max-w-xs transition text-slate-800 text-xs font-semibold my-1">
+                    <i class="fa-solid fa-file-pdf text-rose-500 text-2xl flex-shrink-0"></i>
+                    <div class="truncate flex-1">
+                        <span class="block truncate">${escapeHtml(filename)}</span>
+                        <span class="text-[10px] text-slate-400 font-normal">Haz clic para descargar</span>
+                    </div>
+                    <i class="fa-solid fa-download text-slate-400"></i>
+                </a>
+                ${m.body && !m.body.startsWith('📄') ? `<p class="mt-1">${escapeHtml(m.body)}</p>` : ''}
+            `;
+        } else if (m.transcription) {
+            bodyHtml = `
+                <div class="my-1 p-2 bg-slate-50 rounded-lg border border-slate-200 text-xs">
+                    <span class="text-[10px] font-bold uppercase text-brand-600 block mb-0.5"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Transcripción IA:</span>
+                    "${escapeHtml(m.transcription)}"
+                </div>
+                <p>${escapeHtml(m.body)}</p>
+            `;
+        }
+
         html += `
             ${isHumanTrigger ? `
                 <div class="my-2 py-1.5 px-3 bg-rose-50 text-rose-800 text-[11px] font-semibold rounded-xl border border-rose-200 text-center flex items-center justify-center gap-1.5 self-center max-w-sm font-['Outfit']">
@@ -1025,7 +1093,7 @@ function renderMessages(messages, activeChat) {
                 </div>
             ` : ''}
             <div class="msg-bubble ${m.direction === 'in' ? 'msg-in' : 'msg-out'}">
-                ${escapeHtml(m.body)}
+                ${bodyHtml}
                 <span class="msg-ts">
                     ${timeStr}
                     ${getTicksHtml(m)}
@@ -1042,10 +1110,57 @@ function renderMessages(messages, activeChat) {
 }
 
 // ════════════════════════════════════════════════
-// ENVIAR MENSAJE
+// MANEJO DE MULTIMEDIA Y ENVIAR MENSAJE
 // ════════════════════════════════════════════════
+let selectedMediaFile = null;
+
+function handleMediaSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    selectedMediaFile = file;
+
+    const container = document.getElementById('media-preview-container');
+    const nameEl = document.getElementById('media-preview-name');
+    const typeEl = document.getElementById('media-preview-type');
+    const iconEl = document.getElementById('media-preview-icon');
+
+    nameEl.textContent = file.name;
+    const type = file.type || '';
+
+    if (type.startsWith('image/')) {
+        typeEl.textContent = 'Imagen';
+        iconEl.innerHTML = `<i class="fa-solid fa-image text-emerald-600"></i>`;
+    } else if (type.startsWith('audio/')) {
+        typeEl.textContent = 'Audio';
+        iconEl.innerHTML = `<i class="fa-solid fa-microphone text-brand-600"></i>`;
+    } else {
+        typeEl.textContent = 'Documento';
+        iconEl.innerHTML = `<i class="fa-solid fa-file-pdf text-rose-600"></i>`;
+    }
+
+    container.classList.remove('hidden');
+    container.classList.add('flex');
+}
+
+function cancelMediaUpload() {
+    selectedMediaFile = null;
+    const fileInput = document.getElementById('media-file-input');
+    if (fileInput) fileInput.value = '';
+    const container = document.getElementById('media-preview-container');
+    if (container) {
+        container.classList.add('hidden');
+        container.classList.remove('flex');
+    }
+}
+
 async function sendMessage() {
     if (!activePhone) return;
+
+    if (selectedMediaFile) {
+        await sendMediaMessage();
+        return;
+    }
+
     const input = document.getElementById('chat-input');
     const body = input.value.trim();
     if (!body) return;
@@ -1059,6 +1174,68 @@ async function sendMessage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phone: activePhone, body })
         });
+        const data = await res.json();
+        if (data.status === 'sent') {
+            await pollMessages();
+        } else if (data.whatsapp && data.whatsapp.error) {
+            showToast('⚠️ ' + data.whatsapp.error);
+        }
+    } catch(e) {
+        console.error('Error al enviar mensaje:', e);
+    }
+}
+
+async function sendMediaMessage() {
+    if (!selectedMediaFile || !activePhone) return;
+
+    const file = selectedMediaFile;
+    const captionInput = document.getElementById('chat-input');
+    const caption = captionInput.value.trim();
+
+    showToast('⏳ Subiendo archivo multimedia...');
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const upRes = await fetch('/conversations/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+        const upData = await upRes.json();
+        if (!upData.exito) {
+            showToast('❌ Error subiendo archivo: ' + (upData.error || 'Error desconocido'));
+            return;
+        }
+
+        const sendRes = await fetch('/conversations/api/send-media', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phone: activePhone,
+                media_url: upData.media_url,
+                media_type: upData.media_type,
+                filename: upData.filename,
+                caption: caption
+            })
+        });
+        const sendData = await sendRes.json();
+
+        cancelMediaUpload();
+        captionInput.value = '';
+        captionInput.style.height = 'auto';
+
+        if (sendData.status === 'sent') {
+            showToast('✅ Multimedia enviado correctamente.');
+            await pollMessages();
+        } else {
+            showToast('⚠️ Error enviando multimedia: ' + (sendData.error || 'Error Meta API'));
+        }
+    } catch(e) {
+        console.error('Error enviando archivo multimedia:', e);
+        showToast('❌ Error al procesar el archivo multimedia.');
+    }
+}
 
         const data = await res.json();
 

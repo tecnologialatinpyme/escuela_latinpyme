@@ -141,8 +141,60 @@ def webhook_receive():
                 for msg in value.get('messages', []):
                     raw_phone     = msg.get('from', '')
                     from_user_id  = msg.get('from_user_id', '')
-                    body          = msg.get('text', {}).get('body', '[mensaje sin texto]')
                     msg_id        = msg.get('id', str(uuid.uuid4()))
+
+                    # Extraer tipo de mensaje y multimedia (imagen, audio, documento, video, etc.)
+                    msg_type      = msg.get('type', 'text')
+                    body          = '[mensaje sin texto]'
+                    media_id      = None
+                    media_url     = None
+                    media_type    = None
+                    filename      = None
+                    transcription = None
+
+                    if msg_type == 'text':
+                        body = msg.get('text', {}).get('body', '[mensaje sin texto]')
+                    elif msg_type == 'image':
+                        img_obj = msg.get('image', {})
+                        media_id = img_obj.get('id')
+                        caption = img_obj.get('caption', '')
+                        body = caption or '📷 [Imagen recibida]'
+                        media_type = 'image'
+                    elif msg_type in ['audio', 'voice']:
+                        aud_obj = msg.get(msg_type, {})
+                        media_id = aud_obj.get('id')
+                        body = '🎤 [Nota de voz / Audio]'
+                        media_type = 'audio'
+                    elif msg_type == 'document':
+                        doc_obj = msg.get('document', {})
+                        media_id = doc_obj.get('id')
+                        filename = doc_obj.get('filename', 'documento.pdf')
+                        caption = doc_obj.get('caption', '')
+                        body = filename or caption or '📄 [Documento recibido]'
+                        media_type = 'document'
+
+                    # Si viene media_id de Meta Cloud API, descargarlo localmente
+                    if media_id:
+                        try:
+                            from services.whatsapp_service import WhatsAppService
+                            wa_svc = WhatsAppService()
+                            dl_res = wa_svc.download_media(media_id)
+                            if dl_res.get('exito'):
+                                media_url = dl_res.get('media_url')
+                                local_path = dl_res.get('local_path')
+                                
+                                # Si es un audio / nota de voz, ¡transcribir a texto en español con OpenAI Whisper!
+                                if media_type == 'audio' and local_path:
+                                    try:
+                                        from services.openai_service import OpenAIService
+                                        ai_svc = OpenAIService()
+                                        transcription = ai_svc.transcribe_audio(local_path)
+                                        if transcription:
+                                            body = f"🎤 [Audio transcribido]: {transcription}"
+                                    except Exception as tr_err:
+                                        current_app.logger.error(f"[WEBHOOK] Error transcribiendo audio: {tr_err}")
+                        except Exception as media_err:
+                            current_app.logger.error(f"[WEBHOOK] Error procesando multimedia {media_id}: {media_err}")
 
                     contacts = value.get('contacts', [])
                     contact  = contacts[0] if contacts else {}
@@ -192,7 +244,11 @@ def webhook_receive():
                         "id": msg_id,
                         "direction": "in",
                         "body": body,
-                        "ts": _now_ts()
+                        "ts": _now_ts(),
+                        "media_type": media_type,
+                        "media_url": media_url,
+                        "filename": filename,
+                        "transcription": transcription
                     }
                     conversations_store[phone_key]["messages"].append(new_msg)
                     conversations_store[phone_key]["unread"] += 1
@@ -818,4 +874,141 @@ def api_human_toggle():
         "human_required": human_required,
         "mensaje": f"Estado de atención humana actualizado para {phone}."
     })
+
+
+# ──────────────────────────────────────────────
+# API — Cargar archivo multimedia (Imágenes, Audio, Documentos)
+# ──────────────────────────────────────────────
+@conversations_bp.route('/api/upload', methods=['POST'])
+@login_required
+def api_upload_media():
+    """
+    Recibe un archivo cargado desde la interfaz de chat (Multipart Form Data),
+    lo almacena localmente en static/uploads/media/ y retorna la URL pública.
+    """
+    if 'file' not in request.files:
+        return jsonify({"error": "No se envió ningún archivo"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "Nombre de archivo vacío"}), 400
+
+    import os
+    import time
+    import uuid
+    from werkzeug.utils import secure_filename
+
+    upload_folder = os.path.join(current_app.static_folder or 'static', 'uploads', 'media')
+    os.makedirs(upload_folder, exist_ok=True)
+
+    filename_orig = secure_filename(file.filename)
+    ext = os.path.splitext(filename_orig)[1].lower()
+    
+    # Determinar tipo de media
+    mime_type = file.mimetype or ''
+    if mime_type.startswith('image/') or ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
+        media_type = 'image'
+    elif mime_type.startswith('audio/') or ext in ['.mp3', '.ogg', '.wav', '.m4a']:
+        media_type = 'audio'
+    else:
+        media_type = 'document'
+
+    safe_name = f"upload_{int(time.time())}_{uuid.uuid4().hex[:6]}{ext}"
+    file_path = os.path.join(upload_folder, safe_name)
+    file.save(file_path)
+
+    media_url = f"/static/uploads/media/{safe_name}"
+
+    return jsonify({
+        "exito": True,
+        "media_url": media_url,
+        "media_type": media_type,
+        "filename": filename_orig
+    }), 200
+
+
+# ──────────────────────────────────────────────
+# API — Enviar mensaje multimedia (Imagen, Audio, Documento)
+# ──────────────────────────────────────────────
+@conversations_bp.route('/api/send-media', methods=['POST'])
+@login_required
+def api_send_media():
+    """
+    Envía un archivo multimedia (imagen, audio, documento) por WhatsApp Cloud API
+    y lo almacena en la conversación activa.
+    """
+    from services.whatsapp_service import WhatsAppService
+
+    data = request.get_json(silent=True) or {}
+    phone = data.get('phone', '').strip()
+    media_url = data.get('media_url', '').strip()
+    media_type = data.get('media_type', 'document').strip()
+    caption = data.get('caption', '').strip()
+    filename = data.get('filename', '').strip()
+
+    if not phone or not media_url:
+        return jsonify({"error": "Faltan campos obligatorios phone o media_url"}), 400
+
+    if phone not in conversations_store:
+        return jsonify({"error": "Conversación no encontrada"}), 404
+
+    conv = conversations_store[phone]
+
+    # Determinar número de teléfono destino
+    if phone.startswith('+') and phone[1:].isdigit():
+        send_to = phone
+    else:
+        real = conv.get('real_phone') or conv.get('wa_id', '')
+        send_to = (real if real.startswith('+') else '+' + real) if real else None
+
+    if not send_to:
+        return jsonify({"error": "No se puede enviar sin número de teléfono válido"}), 400
+
+    # Construir body para la previsualización
+    if media_type == 'image':
+        body = caption or '📷 [Imagen]'
+    elif media_type == 'audio':
+        body = '🎵 [Audio]'
+    else:
+        body = filename or caption or '📄 [Documento]'
+
+    # Intentar enviar por Meta Cloud API
+    wa_svc = WhatsAppService()
+    wa_res = wa_svc.enviar_mensaje_media(send_to, media_type, media_url, caption=caption, filename=filename)
+
+    meta_msg_id = wa_res.get("message_id") or str(uuid.uuid4())
+    initial_status = "sent" if wa_res.get("exito") else "failed"
+
+    new_msg = {
+        "id": meta_msg_id,
+        "wa_message_id": meta_msg_id,
+        "direction": "out",
+        "body": body,
+        "ts": _now_ts(),
+        "media_type": media_type,
+        "media_url": media_url,
+        "filename": filename,
+        "wa_sent": wa_res.get("exito", False),
+        "simulado": wa_res.get("simulado", False),
+        "status": initial_status
+    }
+
+    conv["messages"].append(new_msg)
+    conv["last_message"] = body
+    conv["last_ts"] = _now_ts()
+    _save_one(phone, conv)
+
+    try:
+        db.add_message(phone=phone, direction="out", body=body, ts=new_msg["ts"],
+                       wa_sent=new_msg["wa_sent"], simulado=new_msg["simulado"], msg_id=meta_msg_id,
+                       wa_message_id=meta_msg_id, status=initial_status)
+    except Exception as db_err:
+        current_app.logger.error(f"[SEND-MEDIA] Error guardando en BD: {db_err}")
+
+    return jsonify({
+        "status": "sent",
+        "message": new_msg,
+        "whatsapp": wa_res
+    }), 200
+
 
