@@ -424,8 +424,23 @@ def api_get_messages():
     global conversations_store
     try:
         db_store = _load_store()
-        if db_store is not None:
-            conversations_store = db_store
+        if db_store:
+            for p, d in db_store.items():
+                if p not in conversations_store:
+                    conversations_store[p] = d
+                else:
+                    existing_msgs = conversations_store[p].get('messages', [])
+                    db_msgs = d.get('messages', [])
+                    seen = set()
+                    merged_msgs = []
+                    for m in db_msgs + existing_msgs:
+                        mid = m.get('wa_message_id') or m.get('id') or (m.get('ts'), m.get('body'))
+                        if mid not in seen:
+                            seen.add(mid)
+                            merged_msgs.append(m)
+                    conversations_store[p]['messages'] = merged_msgs
+                    if d.get('name') and d['name'] != p:
+                        conversations_store[p]['name'] = d['name']
     except Exception as e:
         print(f"[API-MESSAGES] Aviso sincronizando conversaciones con BD: {e}")
 

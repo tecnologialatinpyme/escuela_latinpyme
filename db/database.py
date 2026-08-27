@@ -154,7 +154,7 @@ def load_store(include_deleted: bool = False) -> dict:
 
         # 2. Cargar mensajes normalizados de la tabla 'messages'
         try:
-            msg_query = client.table('messages').select('*').is_('deleted_at', 'null').order('ts', desc=False)
+            msg_query = client.table('messages').select('*').is_('deleted_at', 'null').order('ts', desc=False).limit(10000)
             msg_res = msg_query.execute()
             messages_by_phone = {}
             for m in msg_res.data or []:
