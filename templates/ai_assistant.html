@@ -107,6 +107,11 @@
         <span id="tab-editor-title">Editor de Prompt</span>
       </button>
 
+      <button class="ai-tab-btn" id="tab-btn-globales" onclick="switchTab('globales')">
+        <i class="fa-solid fa-sliders text-amber-500"></i>
+        <span>Prompts Globales</span>
+      </button>
+
       <button class="ai-tab-btn" id="tab-btn-simulador" onclick="switchTab('simulador')">
         <i class="fa-solid fa-vial"></i>
         <span>Simulador de IA</span>
@@ -224,7 +229,7 @@
 
 
   <!-- ══════════════════════════════════════════════════════════════════════
-       VISTA 2: EDITOR DE PROMPTS (VISTA DEDICADA ESPACIOSA)
+       VISTA 2: EDITOR DE PROMPTS INDIVIDUAL (SIN PROMPTS GLOBALES MEZCLADOS)
   ══════════════════════════════════════════════════════════════════════ -->
   <div id="view-editor" class="hidden space-y-6">
     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
@@ -267,7 +272,7 @@
             <span class="text-xs text-slate-400"><span id="char-count">0</span> caracteres</span>
           </div>
           <textarea id="f-prompt" required oninput="updateCharCount()" rows="10"
-                    placeholder="Eres el asistente virtual para {aula}..."
+                    placeholder="Eres el asistente virtual para..."
                     class="w-full p-4 border border-slate-300 rounded-xl text-sm font-sans leading-relaxed outline-none focus:border-brand-500 shadow-inner"></textarea>
           
           <!-- Chips de variables -->
@@ -279,31 +284,6 @@
             <span class="var-chip" onclick="insertVar('{fecha}')">{fecha}</span>
             <span class="var-chip" onclick="insertVar('{prompt_maestro}')">{prompt_maestro}</span>
           </div>
-        </div>
-
-        <!-- Acordeón / Colapsables para Prompts Globales -->
-        <div class="space-y-4 pt-4 border-t border-slate-100">
-          <details class="bg-slate-50 rounded-xl border border-slate-200 p-4">
-            <summary class="font-bold text-sm text-slate-800 cursor-pointer flex items-center justify-between">
-              <span><i class="fa-solid fa-crown text-amber-500 mr-2"></i> Prompt Maestro Global (Aplica a todos los asistentes)</span>
-              <span class="text-xs text-slate-400">Clic para abrir/editar</span>
-            </summary>
-            <div class="mt-3 space-y-2">
-              <textarea id="f-master-prompt" rows="5" class="w-full p-3 border border-slate-300 rounded-lg text-xs font-mono"></textarea>
-              <button type="button" onclick="saveMasterPrompt()" class="px-3 py-1.5 bg-brand-600 text-white rounded text-xs font-semibold">Guardar Prompt Maestro</button>
-            </div>
-          </details>
-
-          <details class="bg-slate-50 rounded-xl border border-slate-200 p-4">
-            <summary class="font-bold text-sm text-slate-800 cursor-pointer flex items-center justify-between">
-              <span><i class="fa-solid fa-shield-halved text-brand-600 mr-2"></i> Prompt Por Defecto (Para usuarios sin disparador específico)</span>
-              <span class="text-xs text-slate-400">Clic para abrir/editar</span>
-            </summary>
-            <div class="mt-3 space-y-2">
-              <textarea id="f-default-prompt" rows="4" class="w-full p-3 border border-slate-300 rounded-lg text-xs font-mono"></textarea>
-              <button type="button" onclick="saveDefaultPrompt()" class="px-3 py-1.5 bg-slate-700 text-white rounded text-xs font-semibold">Guardar Prompt por Defecto</button>
-            </div>
-          </details>
         </div>
 
         <!-- Barra inferior de acciones -->
@@ -321,6 +301,55 @@
         </div>
 
       </form>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       VISTA 3: PROMPTS GLOBALES (PESTAÑA DEDICADA)
+  ══════════════════════════════════════════════════════════════════════ -->
+  <div id="view-globales" class="hidden space-y-6">
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+      
+      <div class="border-b border-slate-100 pb-4">
+        <h2 class="text-lg font-bold text-slate-800"><i class="fa-solid fa-sliders text-amber-500 mr-2"></i> Configuración de Prompts Globales</h2>
+        <p class="text-xs text-slate-500">Configura las instrucciones maestras y la respuesta por defecto cuando no exista un disparador específico.</p>
+      </div>
+
+      <!-- Prompt Maestro Global -->
+      <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-3">
+        <div class="flex items-center justify-between">
+          <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+            <i class="fa-solid fa-crown text-amber-500 mr-1.5"></i> Prompt Maestro Global
+          </label>
+          <span class="text-xs text-slate-400">Se antepone a las instrucciones de todos los asistentes</span>
+        </div>
+        <textarea id="f-master-prompt" rows="6" placeholder="Escribe aquí las instrucciones maestras de tono, políticas o reglas globales..."
+                  class="w-full p-4 border border-slate-300 rounded-xl text-xs font-mono leading-relaxed outline-none focus:border-brand-500 shadow-inner bg-white"></textarea>
+        <div class="flex justify-end">
+          <button type="button" onclick="saveMasterPrompt()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow-md transition flex items-center gap-2">
+            <i class="fa-solid fa-floppy-disk"></i> Guardar Prompt Maestro
+          </button>
+        </div>
+      </div>
+
+      <!-- Prompt Por Defecto -->
+      <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-3">
+        <div class="flex items-center justify-between">
+          <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+            <i class="fa-solid fa-shield-halved text-brand-600 mr-1.5"></i> Prompt Por Defecto
+          </label>
+          <span class="text-xs text-slate-400">Aplica para usuarios que escriban sin un disparador específico</span>
+        </div>
+        <textarea id="f-default-prompt" rows="5" placeholder="Escribe la respuesta predeterminada para usuarios generales..."
+                  class="w-full p-4 border border-slate-300 rounded-xl text-xs font-mono leading-relaxed outline-none focus:border-brand-500 shadow-inner bg-white"></textarea>
+        <div class="flex justify-end">
+          <button type="button" onclick="saveDefaultPrompt()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold shadow-md transition flex items-center gap-2">
+            <i class="fa-solid fa-floppy-disk"></i> Guardar Prompt por Defecto
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -444,11 +473,13 @@ function switchTab(tabName) {
   // Ocultar todas las vistas
   document.getElementById('view-aulas').classList.add('hidden');
   document.getElementById('view-editor').classList.add('hidden');
+  document.getElementById('view-globales').classList.add('hidden');
   document.getElementById('view-simulador').classList.add('hidden');
 
   // Desactivar estilo de botones
   document.getElementById('tab-btn-aulas').classList.remove('active');
   document.getElementById('tab-btn-editor').classList.remove('active');
+  document.getElementById('tab-btn-globales').classList.remove('active');
   document.getElementById('tab-btn-simulador').classList.remove('active');
 
   // Mostrar vista seleccionada
@@ -458,6 +489,9 @@ function switchTab(tabName) {
   } else if (tabName === 'editor') {
     document.getElementById('view-editor').classList.remove('hidden');
     document.getElementById('tab-btn-editor').classList.add('active');
+  } else if (tabName === 'globales') {
+    document.getElementById('view-globales').classList.remove('hidden');
+    document.getElementById('tab-btn-globales').classList.add('active');
   } else if (tabName === 'simulador') {
     document.getElementById('view-simulador').classList.remove('hidden');
     document.getElementById('tab-btn-simulador').classList.add('active');
