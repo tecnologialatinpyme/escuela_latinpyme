@@ -85,7 +85,6 @@
                         <th class="py-3.5 px-5">Contacto</th>
                         <th class="py-3.5 px-5">Correo Electrónico</th>
                         <th class="py-3.5 px-5">Empresa / Cargo</th>
-                        <th class="py-3.5 px-5">Aula Virtual</th>
                         <th class="py-3.5 px-5">Última Actividad</th>
                         <th class="py-3.5 px-5 text-right">Acciones</th>
                     </tr>
@@ -330,10 +329,6 @@ function renderContactsTable(list) {
             <td class="py-3.5 px-5">
                 <p class="font-semibold text-slate-700">${escapeHtml(c.company || '—')}</p>
                 ${c.cargo ? `<p class="text-[10px] text-slate-400">${escapeHtml(c.cargo)}</p>` : ''}
-            </td>
-
-            <td class="py-3.5 px-5">
-                ${c.aula_nombre ? `<span class="bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] font-bold px-2.5 py-1 rounded-lg inline-block"><i class="fa-solid fa-graduation-cap mr-1"></i>${escapeHtml(c.aula_nombre)}</span>` : '<span class="text-slate-400 text-[11px]">Ninguna</span>'}
             </td>
 
             <td class="py-3.5 px-5 text-slate-400 text-[11px]">
