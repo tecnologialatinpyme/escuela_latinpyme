@@ -472,13 +472,27 @@ def api_get_messages():
     chat_list.sort(key=_parse_ts_sort, reverse=True)
 
 
-    if phone and phone in conversations_store:
+    from db.database import normalize_phone_number
+
+    active_phone_key = None
+    if phone:
+        clean_phone = phone.strip()
+        if clean_phone.startswith(' '):
+            clean_phone = '+' + clean_phone.lstrip()
+        norm_phone = normalize_phone_number(clean_phone)
+
+        for k in conversations_store.keys():
+            if k == clean_phone or k == norm_phone or normalize_phone_number(k) == norm_phone:
+                active_phone_key = k
+                break
+
+    if active_phone_key and active_phone_key in conversations_store:
         # Marcar como leído al abrir el chat
-        conversations_store[phone]["unread"] = 0
+        conversations_store[active_phone_key]["unread"] = 0
         return jsonify({
             "chats": chat_list,
-            "active_messages": conversations_store[phone]["messages"],
-            "active_name": conversations_store[phone]["name"]
+            "active_messages": conversations_store[active_phone_key]["messages"],
+            "active_name": conversations_store[active_phone_key]["name"]
         })
 
     return jsonify({"chats": chat_list, "active_messages": [], "active_name": ""})
@@ -495,17 +509,24 @@ def api_delete_conversation():
     Recibe JSON: { "phone": "+57XXXXXXXXXX" }
     """
     data = request.get_json(silent=True) or {}
-    phone = data.get('phone', '').strip()
+    raw_phone = data.get('phone', '').strip()
 
-    if not phone:
+    if not raw_phone:
         return jsonify({"error": "Falta el campo phone"}), 400
 
-    if phone not in conversations_store:
-        return jsonify({"error": "Conversación no encontrada"}), 404
+    from db.database import normalize_phone_number
+    norm_phone = normalize_phone_number(raw_phone)
 
-    del conversations_store[phone]
-    db.delete_conversation(phone)
-    return jsonify({"status": "deleted", "phone": phone}), 200
+    # Eliminar de conversations_store probando todas las variantes de claves
+    keys_to_del = [k for k in conversations_store.keys() if k == raw_phone or k == norm_phone or normalize_phone_number(k) == norm_phone]
+    for k in keys_to_del:
+        conversations_store.pop(k, None)
+
+    db.delete_conversation(raw_phone)
+    if norm_phone and norm_phone != raw_phone:
+        db.delete_conversation(norm_phone)
+
+    return jsonify({"status": "deleted", "phone": raw_phone}), 200
 
 
 # ──────────────────────────────────────────────

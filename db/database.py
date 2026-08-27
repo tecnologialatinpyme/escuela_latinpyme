@@ -378,11 +378,22 @@ def save_store(store: dict) -> None:
 
 def delete_conversation(phone: str) -> None:
     """Realiza Soft Delete marcando deleted_at en la conversación y sus mensajes."""
+    norm_phone = normalize_phone_number(phone)
     try:
         client = _get_client()
-        client.table('conversations').update({'deleted_at': 'now()'}).eq('phone', phone).execute()
-        client.table('messages').update({'deleted_at': 'now()'}).eq('conversation_phone', phone).execute()
-        print(f"[DB] Conversación {phone} y sus mensajes marcados como inactivos (Soft Delete).")
+        now_iso = datetime.now(timezone.utc).isoformat()
+        
+        # Eliminar conversación en Supabase
+        client.table('conversations').update({'deleted_at': now_iso}).eq('phone', phone).execute()
+        if norm_phone and norm_phone != phone:
+            client.table('conversations').update({'deleted_at': now_iso}).eq('phone', norm_phone).execute()
+
+        # Eliminar mensajes en Supabase
+        client.table('messages').update({'deleted_at': now_iso}).eq('conversation_phone', phone).execute()
+        if norm_phone and norm_phone != phone:
+            client.table('messages').update({'deleted_at': now_iso}).eq('conversation_phone', norm_phone).execute()
+
+        print(f"[DB] Conversación {phone} ({norm_phone}) y sus mensajes marcados como inactivos (Soft Delete).")
     except Exception as e:
         print(f"[DB] Error marcando inactiva conversación {phone}: {e}")
 

@@ -694,15 +694,11 @@ async function pollMessages() {
         renderChatList(allChats);
 
         if (activePhone) {
-            const activeChat = allChats.find(c => c.phone === activePhone);
+            const activeChat = allChats.find(c => c.phone === activePhone || (c.phone && activePhone && c.phone.replace(/[\s\+]/g,'') === activePhone.replace(/[\s\+]/g,'')));
             updateActiveChatHeaderStatus(activeChat);
 
             if (data.active_messages) {
-                const newCount = data.active_messages.length;
-                if (newCount !== lastMessageCount) {
-                    lastMessageCount = newCount;
-                    renderMessages(data.active_messages, activeChat);
-                }
+                renderMessages(data.active_messages, activeChat);
             }
         }
 
