@@ -178,11 +178,46 @@
       </div>
     </div>
 
-    <!-- Grid de Tarjetas de Aulas -->
-    <div id="aulas-grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      <div class="col-span-full text-center py-12 text-slate-400">
-        <div class="spinner mx-auto mb-2"></div>
-        <p class="text-sm">Cargando aulas y prompts configurados...</p>
+    <!-- Tabla Elegante de Asistentes IA con Paginador -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <th class="py-3.5 px-4 w-36">ID / Trigger</th>
+              <th class="py-3.5 px-4 w-1/4">Asistente / Aula</th>
+              <th class="py-3.5 px-4">Instrucción / Prompt</th>
+              <th class="py-3.5 px-4 text-center w-28">Estado</th>
+              <th class="py-3.5 px-4 text-right w-48">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="aulas-table-body" class="divide-y divide-slate-100 text-sm">
+            <tr>
+              <td colspan="5" class="text-center py-12 text-slate-400">
+                <div class="spinner mx-auto mb-2"></div>
+                <p class="text-sm font-semibold">Cargando asistentes y prompts configurados...</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Paginador Footer -->
+      <div class="bg-slate-50 px-4 py-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+        <div class="flex items-center gap-2">
+          <span>Mostrar:</span>
+          <select id="items-per-page" onchange="changeItemsPerPage(this.value)" class="bg-white border border-slate-300 rounded px-2 py-1 outline-none text-xs font-semibold">
+            <option value="10">10 por página</option>
+            <option value="25" selected>25 por página</option>
+            <option value="50">50 por página</option>
+            <option value="100">100 por página</option>
+          </select>
+          <span id="pagination-info" class="text-slate-500 ml-2">Mostrando 0 a 0 de 0 asistentes</span>
+        </div>
+
+        <div class="flex items-center gap-1" id="pagination-controls">
+          <!-- Botones dinámicos de paginación -->
+        </div>
       </div>
     </div>
   </div>
@@ -384,11 +419,13 @@
 {% block extra_scripts %}
 <script>
 // ── Estado Global ──────────────────────────────────────────────────────────
-let prompts        = [];
-let filteredPrompts = [];
-let activeAulaId   = null;
-let isNewPrompt    = false;
-let currentFilter  = 'all';
+let prompts         = [];
+let filteredPrompts  = [];
+let activeAulaId    = null;
+let isNewPrompt     = false;
+let currentFilter   = 'all';
+let currentPage     = 1;
+let itemsPerPage    = 25;
 
 // ── Inicialización ────────────────────────────────────────────────────────
 function initAiAssistant() {
@@ -439,20 +476,22 @@ async function loadPrompts() {
     filterAulas();
   } catch (e) {
     console.error("Error cargando prompts:", e);
-    const grid = document.getElementById('aulas-grid-container');
-    if (grid) {
-      grid.innerHTML = `
-        <div class="col-span-full text-center py-12 text-red-500 bg-white rounded-xl border border-red-200 shadow-sm">
-          <i class="fa-solid fa-triangle-exclamation text-3xl mb-2 block"></i>
-          <p class="text-sm font-bold">Error cargando las aulas desde Supabase.</p>
-          <p class="text-xs text-slate-500 mt-1">${escapeHtml(e.message)}</p>
-          <button onclick="loadPrompts()" class="mt-4 px-4 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow transition">Reintentar</button>
-        </div>`;
+    const tbody = document.getElementById('aulas-table-body');
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center py-12 text-red-500 bg-white">
+            <i class="fa-solid fa-triangle-exclamation text-3xl mb-2 block"></i>
+            <p class="text-sm font-bold">Error cargando las aulas desde la base de datos.</p>
+            <p class="text-xs text-slate-500 mt-1">${escapeHtml(e.message)}</p>
+            <button onclick="loadPrompts()" class="mt-4 px-4 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow transition">Reintentar</button>
+          </td>
+        </tr>`;
     }
   }
 }
 
-// ── Filtrado y Renderizado del Grid ───────────────────────────────────────
+// ── Filtrado y Renderizado de la Tabla con Paginador ─────────────────────
 function setFilterStatus(status) {
   currentFilter = status;
   ['all', 'active', 'inactive'].forEach(st => {
@@ -465,6 +504,7 @@ function setFilterStatus(status) {
       }
     }
   });
+  currentPage = 1;
   filterAulas();
 }
 
@@ -490,51 +530,192 @@ function filterAulas() {
     return matchesQuery && matchesStatus;
   });
 
-  renderAulasGrid();
+  renderAulasTable();
 }
 
-function renderAulasGrid() {
-  const grid = document.getElementById('aulas-grid-container');
-  if (!grid) return;
+function renderAulasTable() {
+  const tbody = document.getElementById('aulas-table-body');
+  if (!tbody) return;
   
-  if (filteredPrompts.length === 0) {
-    grid.innerHTML = `
-      <div class="col-span-full text-center py-12 text-slate-400 bg-white rounded-xl border border-slate-200">
-        <i class="fa-solid fa-chalkboard-user text-3xl mb-2 block"></i>
-        <p class="text-sm font-semibold">No se encontraron aulas o prompts.</p>
-      </div>`;
+  const totalItems = filteredPrompts.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex   = Math.min(startIndex + itemsPerPage, totalItems);
+  const paginatedPrompts = filteredPrompts.slice(startIndex, endIndex);
+
+  // Actualizar Info de Paginación
+  const infoSpan = document.getElementById('pagination-info');
+  if (infoSpan) {
+    if (totalItems === 0) {
+      infoSpan.textContent = "Mostrando 0 de 0 asistentes";
+    } else {
+      infoSpan.textContent = `Mostrando ${startIndex + 1} a ${endIndex} de ${totalItems} asistentes`;
+    }
+  }
+
+  renderPaginationControls(totalPages);
+
+  if (paginatedPrompts.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="text-center py-12 text-slate-400 bg-white">
+          <i class="fa-solid fa-robot text-3xl mb-2 block text-slate-300"></i>
+          <p class="text-sm font-semibold text-slate-600">No se encontraron asistentes o prompts.</p>
+        </td>
+      </tr>`;
     return;
   }
 
-  grid.innerHTML = filteredPrompts.map(p => {
+  tbody.innerHTML = paginatedPrompts.map(p => {
     const safeId = escapeHtml(String(p.aula_id != null ? p.aula_id : ''));
     const safeNombre = escapeHtml(String(p.aula_nombre || 'Sin nombre'));
+    const promptText = String(p.prompt || '');
+    const safeSnippet = escapeHtml(promptText.length > 90 ? promptText.slice(0, 90) + '...' : promptText);
     const isActivo = Boolean(p.activo);
 
     return `
-    <div class="aula-grid-card">
-      <div>
-        <div class="flex items-start justify-between gap-2 mb-2">
-          <h3 class="font-bold text-sm text-slate-800 leading-snug">${safeNombre}</h3>
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isActivo ? 'aula-badge-active' : 'aula-badge-inactive'} shrink-0">
-            ${isActivo ? 'Activo' : 'Inactivo'}
+    <tr class="hover:bg-slate-50/80 transition group">
+      <td class="py-3 px-4">
+        <span class="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded font-mono text-xs font-semibold text-slate-700">
+          ${safeId}
+        </span>
+      </td>
+      <td class="py-3 px-4 font-bold text-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="w-7 h-7 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center text-xs font-bold border border-brand-100 shrink-0">
+            <i class="fa-solid fa-robot"></i>
           </span>
+          <span class="truncate max-w-[200px]" title="${safeNombre}">${safeNombre}</span>
         </div>
-        <div class="text-xs text-slate-500 font-mono mb-4">
-          ID / Trigger: <span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">${safeId}</span>
+      </td>
+      <td class="py-3 px-4">
+        <p class="text-xs text-slate-600 max-w-md line-clamp-2 leading-relaxed font-normal" title="${escapeHtml(promptText)}">
+          ${safeSnippet}
+        </p>
+      </td>
+      <td class="py-3 px-4 text-center">
+        <label class="toggle-switch inline-block align-middle" title="${isActivo ? 'Desactivar prompt' : 'Activar prompt'}">
+          <input type="checkbox" ${isActivo ? 'checked' : ''} onchange="toggleAulaStatus('${safeId}', this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+      </td>
+      <td class="py-3 px-4 text-right">
+        <div class="flex items-center justify-end gap-1.5">
+          <button onclick="editarAula('${safeId}')" class="px-2.5 py-1.5 bg-slate-900 hover:bg-brand-600 text-white rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1.5">
+            <i class="fa-solid fa-pen-to-square"></i> Editar
+          </button>
+          <button onclick="probarEnSimulador('${safeId}')" class="px-2.5 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-semibold transition" title="Probar en simulador">
+            <i class="fa-solid fa-flask text-brand-600"></i>
+          </button>
+          <button onclick="confirmDeletePrompt('${safeId}')" class="px-2 py-1.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg text-xs font-semibold transition" title="Eliminar prompt">
+            <i class="fa-solid fa-trash"></i>
+          </button>
         </div>
-      </div>
-
-      <div class="flex items-center gap-2 pt-3 border-t border-slate-100">
-        <button onclick="editarAula('${safeId}')" class="flex-1 py-1.5 bg-slate-900 hover:bg-brand-600 text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5">
-          <i class="fa-solid fa-pen-to-square"></i> Editar
-        </button>
-        <button onclick="probarEnSimulador('${safeId}')" class="px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-semibold transition" title="Probar en simulador">
-          <i class="fa-solid fa-flask"></i>
-        </button>
-      </div>
-    </div>
+      </td>
+    </tr>
   `}).join('');
+}
+
+// ── Control de Paginación ──────────────────────────────────────────────────
+function renderPaginationControls(totalPages) {
+  const container = document.getElementById('pagination-controls');
+  if (!container) return;
+
+  if (totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = '';
+  
+  // Botón Anterior
+  html += `<button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} 
+           class="px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold transition">
+           <i class="fa-solid fa-chevron-left"></i>
+           </button>`;
+
+  // Páginas
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+      const isCurrent = i === currentPage;
+      html += `<button onclick="goToPage(${i})" 
+               class="px-3 py-1 rounded text-xs font-semibold transition ${isCurrent ? 'bg-brand-600 text-white shadow-sm font-bold' : 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-600'}">
+               ${i}
+               </button>`;
+    } else if (i === currentPage - 2 || i === currentPage + 2) {
+      html += `<span class="px-1 text-slate-400 font-bold">...</span>`;
+    }
+  }
+
+  // Botón Siguiente
+  html += `<button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} 
+           class="px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold transition">
+           <i class="fa-solid fa-chevron-right"></i>
+           </button>`;
+
+  container.innerHTML = html;
+}
+
+function goToPage(page) {
+  const totalPages = Math.ceil(filteredPrompts.length / itemsPerPage);
+  if (page < 1 || page > totalPages) return;
+  currentPage = page;
+  renderAulasTable();
+}
+
+function changeItemsPerPage(val) {
+  itemsPerPage = parseInt(val, 10) || 25;
+  currentPage = 1;
+  renderAulasTable();
+}
+
+// ── Cambiar Estado Activo/Inactivo desde la Tabla ──────────────────────────
+async function toggleAulaStatus(aulaId, newStatus) {
+  try {
+    const r = await fetch(`/ai-assistant/api/prompts/${aulaId}/toggle`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ activo: newStatus })
+    });
+    const d = await r.json();
+    if (d.exito) {
+      const p = prompts.find(x => x.aula_id == aulaId);
+      if (p) p.activo = newStatus;
+      filterAulas();
+      const toast = Swal.mixin({
+        toast: true, position: 'top-end', showConfirmButton: false, timer: 1800
+      });
+      toast.fire({ icon: 'success', title: d.mensaje });
+    } else {
+      Swal.fire('Error', d.error, 'error');
+    }
+  } catch (e) {
+    Swal.fire('Error', e.message, 'error');
+  }
+}
+
+async function confirmDeletePrompt(aulaId) {
+  const p = prompts.find(x => x.aula_id == aulaId);
+  const nombre = p ? p.aula_nombre : aulaId;
+  const confirm = await Swal.fire({
+    title: `¿Eliminar "${nombre}"?`,
+    text: 'Esta acción realizará un borrado de este prompt.',
+    icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar'
+  });
+  if (!confirm.isConfirmed) return;
+
+  try {
+    const r = await fetch(`/ai-assistant/api/prompts/${aulaId}`, {method: 'DELETE'});
+    const d = await r.json();
+    if (!d.exito) throw new Error(d.error);
+
+    await loadPrompts();
+    Swal.fire({icon: 'success', title: 'Eliminado', timer: 1500, showConfirmButton: false});
+  } catch (e) { Swal.fire('Error', e.message, 'error'); }
 }
 
 // ── Acciones de Selección y Edición ────────────────────────────────────────
