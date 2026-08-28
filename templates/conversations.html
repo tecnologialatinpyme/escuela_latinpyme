@@ -1124,32 +1124,35 @@ function renderMessages(messages, activeChat) {
         const isDoc = m.media_type === 'document' || (m.body && m.body.startsWith('📄')) || (m.media_url && /\.(pdf|doc|docx|xls|xlsx)$/i.test(m.media_url));
 
         if (isImage) {
-            const imgSrc = m.media_url || '/static/img/placeholder.png';
+            const imgSrc = m.media_url || '';
             bodyHtml = `
                 <div class="mb-1">
-                    <img src="${imgSrc}" class="rounded-xl max-w-xs max-h-64 object-cover cursor-pointer shadow-sm hover:opacity-95 transition" onclick="window.open('${imgSrc}', '_blank')">
+                    ${imgSrc ? `
+                        <img src="${imgSrc}" 
+                             class="rounded-xl max-w-xs max-h-64 object-cover cursor-pointer shadow-sm hover:opacity-95 transition" 
+                             onclick="window.open('${imgSrc}', '_blank')"
+                             onerror="this.parentElement.innerHTML='<div class=\'p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2\'><i class=\'fa-solid fa-image text-slate-400 text-base\'></i> Imagen no disponible</div>';">
+                    ` : `
+                        <div class="p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2">
+                            <i class="fa-solid fa-image text-slate-400 text-base"></i> Imagen no disponible
+                        </div>
+                    `}
                 </div>
                 ${m.body && !m.body.startsWith('📷') ? `<p class="mt-1 font-medium text-slate-800">${escapeHtml(m.body)}</p>` : ''}
             `;
         } else if (isAudio) {
-            let transcriptText = m.transcription;
-            if (!transcriptText && m.body && m.body.includes('Audio transcribido')) {
-                transcriptText = m.body.replace('🎤 [Audio transcribido]:', '').trim();
-            }
             bodyHtml = `
-                <div class="flex flex-col gap-2 my-1 p-2.5 bg-slate-100/90 rounded-2xl border border-slate-200/80 max-w-xs">
-                    <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center flex-shrink-0 text-sm shadow-xs">
-                            <i class="fa-solid fa-microphone"></i>
-                        </div>
-                        ${m.media_url ? `<audio controls class="w-full h-8 text-xs outline-none" src="${m.media_url}"></audio>` : `<span class="text-xs font-semibold text-slate-700">Nota de voz WhatsApp</span>`}
+                <div class="flex items-center gap-3 p-2.5 bg-slate-100/90 rounded-2xl border border-slate-200/80 my-1 max-w-xs shadow-2xs">
+                    <div class="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 text-sm shadow-xs">
+                        <i class="fa-solid fa-microphone"></i>
                     </div>
-                    ${transcriptText ? `
-                        <div class="text-[11px] text-slate-700 font-medium italic bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-brand-600 block not-italic mb-1"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Transcripción IA Whisper:</span>
-                            "${escapeHtml(transcriptText)}"
-                        </div>
-                    ` : ''}
+                    <div class="flex-1 overflow-hidden">
+                        ${m.media_url ? `
+                            <audio controls class="w-full h-8 text-xs outline-none" src="${m.media_url}"></audio>
+                        ` : `
+                            <span class="text-xs font-semibold text-slate-700 block truncate">Nota de voz WhatsApp</span>
+                        `}
+                    </div>
                 </div>
             `;
         } else if (isDoc) {
