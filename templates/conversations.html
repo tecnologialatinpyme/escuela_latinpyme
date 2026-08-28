@@ -1144,14 +1144,15 @@ function renderMessages(messages, activeChat) {
         if (isImage) {
             const imgSrc = m.media_url || '';
             bodyHtml = `
-                <div class="mb-1">
+                <div class="mb-1" style="min-width: 200px;">
                     ${imgSrc ? `
                         <img src="${imgSrc}" 
-                             class="rounded-xl max-w-xs max-h-64 object-cover cursor-pointer shadow-sm hover:opacity-95 transition" 
+                             class="rounded-xl max-h-72 object-contain cursor-pointer shadow-sm hover:opacity-95 transition bg-slate-900/5" 
+                             style="min-height: 120px; max-width: 280px; width: 100%; display: block;"
                              onclick="window.open('${imgSrc}', '_blank')"
-                             onerror="this.parentElement.innerHTML='<div class=\'p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2\'><i class=\'fa-solid fa-image text-slate-400 text-base\'></i> Imagen no disponible</div>';">
+                             onerror="this.parentElement.innerHTML='<div class=\\'p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2\\'><i class=\\'fa-solid fa-image text-slate-400 text-base\\'></i> Imagen no disponible</div>';">
                     ` : `
-                        <div class="p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2">
+                        <div class="p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2" style="min-width: 200px;">
                             <i class="fa-solid fa-image text-slate-400 text-base"></i> Imagen no disponible
                         </div>
                     `}
@@ -1160,13 +1161,13 @@ function renderMessages(messages, activeChat) {
             `;
         } else if (isAudio) {
             bodyHtml = `
-                <div class="flex items-center gap-3 p-2.5 bg-slate-100/90 rounded-2xl border border-slate-200/80 my-1 max-w-xs shadow-2xs">
-                    <div class="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 text-sm shadow-xs">
+                <div class="flex items-center gap-3 p-2 bg-slate-50/95 rounded-2xl border border-slate-200/80 my-1 shadow-2xs" style="min-width: 260px; max-width: 320px;">
+                    <div class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 text-base shadow-xs">
                         <i class="fa-solid fa-microphone"></i>
                     </div>
-                    <div class="flex-1 overflow-hidden">
+                    <div class="flex-1 min-w-[170px]">
                         ${m.media_url ? `
-                            <audio controls class="w-full h-8 text-xs outline-none" preload="metadata" src="${m.media_url}">
+                            <audio controls style="width: 100%; height: 36px;" preload="metadata" src="${m.media_url}">
                                 <source src="${m.media_url}" type="audio/ogg; codecs=opus">
                                 <source src="${m.media_url}" type="audio/ogg">
                                 <source src="${m.media_url}" type="audio/mpeg">
@@ -1174,7 +1175,10 @@ function renderMessages(messages, activeChat) {
                                 Tu navegador no soporta reproducción de audio.
                             </audio>
                         ` : `
-                            <span class="text-xs font-semibold text-slate-700 block truncate">Nota de voz WhatsApp</span>
+                            <div class="text-xs font-semibold text-slate-700">
+                                <span>Nota de voz WhatsApp</span>
+                                <span class="text-[10px] text-slate-400 block font-normal">Audio procesado</span>
+                            </div>
                         `}
                     </div>
                 </div>
