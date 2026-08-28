@@ -546,19 +546,22 @@
             </div>
 
             <!-- Previsualización de archivo adjunto seleccionado -->
-            <div id="media-preview-container" class="hidden bg-slate-100 p-3 border-t border-slate-200 items-center justify-between gap-3 text-xs flex-shrink-0">
+            <div id="media-preview-container" class="hidden bg-slate-100/95 p-3 border-t border-slate-200 items-center justify-between gap-3 text-xs flex-shrink-0 backdrop-blur-xs">
                 <div class="flex items-center gap-3 overflow-hidden">
-                    <div id="media-preview-icon" class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg flex-shrink-0">
+                    <div id="media-preview-icon" class="w-12 h-12 rounded-xl bg-indigo-50 border border-slate-200 text-indigo-600 flex items-center justify-center text-xl flex-shrink-0 overflow-hidden shadow-2xs">
                         <i class="fa-solid fa-file"></i>
                     </div>
                     <div class="truncate">
-                        <span id="media-preview-name" class="font-bold text-slate-800 block truncate">archivo.pdf</span>
-                        <span id="media-preview-type" class="text-[10px] text-slate-500 uppercase">Documento</span>
+                        <span id="media-preview-name" class="font-bold text-slate-800 block truncate text-xs">archivo.pdf</span>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span id="media-preview-type" class="text-[9px] font-bold uppercase px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded">Documento</span>
+                            <span id="media-preview-size" class="text-[10px] text-slate-400 font-medium">0 KB</span>
+                        </div>
                     </div>
                 </div>
                 <div class="flex items-center gap-2 flex-shrink-0">
-                    <button type="button" onclick="cancelMediaUpload()" class="text-slate-400 hover:text-rose-500 transition text-sm p-1.5 rounded-lg hover:bg-slate-200">
-                        <i class="fa-solid fa-xmark"></i>
+                    <button type="button" onclick="cancelMediaUpload()" class="text-slate-400 hover:text-rose-500 transition text-sm p-2 rounded-xl hover:bg-slate-200" title="Quitar archivo adjunto">
+                        <i class="fa-solid fa-xmark text-base"></i>
                     </button>
                 </div>
             </div>
@@ -599,7 +602,7 @@
                 </div>
 
                 <!-- INPUTS DE ARCHIVOS ESPECÍFICOS -->
-                <input type="file" id="input-attach-document" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip" onchange="handleMediaSelect(event)">
+                <input type="file" id="input-attach-document" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar" onchange="handleMediaSelect(event)">
                 <input type="file" id="input-attach-media" class="hidden" accept="image/*,video/*" onchange="handleMediaSelect(event)">
                 <input type="file" id="input-attach-camera" class="hidden" accept="image/*" capture="environment" onchange="handleMediaSelect(event)">
                 <input type="file" id="input-attach-audio" class="hidden" accept="audio/*,.ogg,.mp3,.wav,.m4a" onchange="handleMediaSelect(event)">
@@ -618,6 +621,27 @@
 
 {# Toast container #}
 <div id="toast-container"></div>
+
+{# Modal — Visor de Imágenes en Pantalla Completa (Lightbox) #}
+<div id="image-lightbox-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden items-center justify-center p-4 animate-fade-in" onclick="closeImageLightbox(event)">
+    <div class="relative max-w-4xl max-h-[92vh] flex flex-col items-center justify-center" onclick="event.stopPropagation()">
+        <div class="w-full flex items-center justify-between pb-3 px-1">
+            <span class="text-xs text-white/70 font-semibold tracking-wide flex items-center gap-1.5 font-['Outfit']">
+                <i class="fa-solid fa-image text-emerald-400"></i> Vista previa
+            </span>
+            <div class="flex items-center gap-2">
+                <a id="lightbox-download-btn" href="#" download target="_blank" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold backdrop-blur-sm transition flex items-center gap-1.5 border border-white/20">
+                    <i class="fa-solid fa-download"></i> Descargar
+                </a>
+                <button onclick="closeImageLightbox()" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition border border-white/20">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+        </div>
+        <img id="lightbox-img" src="" alt="Vista previa" class="max-h-[80vh] max-w-full rounded-2xl shadow-2xl object-contain border border-white/10 bg-black/40">
+        <p id="lightbox-caption" class="text-white/90 text-xs font-medium mt-3 text-center px-4 py-1.5 bg-black/50 rounded-xl backdrop-blur-xs hidden"></p>
+    </div>
+</div>
 
 {# Modal — Info Webhook #}
 <div id="webhook-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center">
@@ -1134,68 +1158,129 @@ function renderMessages(messages, activeChat) {
             }
         };
 
-        // Helper para renderizar contenido multimedia (Imagen, Audio con Transcripción Whisper, Documento)
+        // Helper para renderizar contenido multimedia (Imagen, Audio con Transcripción Whisper, Documento, Video)
         let bodyHtml = escapeHtml(m.body || '');
 
-        const isImage = m.media_type === 'image' || (m.body && m.body.startsWith('📷')) || (m.media_url && /\.(jpg|jpeg|png|webp|gif)$/i.test(m.media_url));
-        const isAudio = m.media_type === 'audio' || (m.body && (m.body.startsWith('🎤') || m.body.startsWith('🎵'))) || (m.media_url && /\.(ogg|opus|mp3|wav|m4a)$/i.test(m.media_url));
-        const isDoc = m.media_type === 'document' || (m.body && m.body.startsWith('📄')) || (m.media_url && /\.(pdf|doc|docx|xls|xlsx)$/i.test(m.media_url));
+        const isImage = m.media_type === 'image' || (m.body && m.body.startsWith('📷')) || (m.media_url && /\.(jpg|jpeg|png|webp|gif|bmp|svg)$/i.test(m.media_url));
+        const isAudio = m.media_type === 'audio' || (m.body && (m.body.startsWith('🎤') || m.body.startsWith('🎵'))) || (m.media_url && /\.(ogg|opus|mp3|wav|m4a|aac)$/i.test(m.media_url));
+        const isDoc = m.media_type === 'document' || (m.body && m.body.startsWith('📄')) || (m.media_url && /\.(pdf|doc|docx|xls|xlsx|ppt|pptx|txt|csv|zip|rar|7z)$/i.test(m.media_url));
+        const isVideo = m.media_type === 'video' || (m.body && m.body.startsWith('🎥')) || (m.media_url && /\.(mp4|mov|avi|webm)$/i.test(m.media_url));
 
         if (isImage) {
             const imgSrc = m.media_url || '';
+            const caption = (m.body && !m.body.startsWith('📷')) ? m.body : '';
             bodyHtml = `
-                <div class="mb-1" style="min-width: 200px;">
+                <div class="rounded-xl overflow-hidden group/img relative my-1" style="max-width: 290px;">
                     ${imgSrc ? `
-                        <img src="${imgSrc}" 
-                             class="rounded-xl max-h-72 object-contain cursor-pointer shadow-sm hover:opacity-95 transition bg-slate-900/5" 
-                             style="min-height: 120px; max-width: 280px; width: 100%; display: block;"
-                             onclick="window.open('${imgSrc}', '_blank')"
-                             onerror="this.parentElement.innerHTML='<div class=\\'p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2\\'><i class=\\'fa-solid fa-image text-slate-400 text-base\\'></i> Imagen no disponible</div>';">
+                        <div class="relative overflow-hidden rounded-xl bg-slate-900/5 cursor-pointer shadow-xs border border-slate-200/60" onclick="openImageLightbox('${imgSrc}', '${escapeHtml(caption)}')">
+                            <img src="${imgSrc}" 
+                                 class="w-full object-cover max-h-72 transition-transform duration-300 group-hover/img:scale-[1.02] block" 
+                                 alt="Imagen adjunta"
+                                 onerror="this.parentElement.innerHTML='<div class=\\'p-3.5 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2\\'><i class=\\'fa-solid fa-image text-slate-400 text-base\\'></i> Imagen no disponible</div>';">
+                            <div class="absolute inset-0 bg-black/35 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                <span class="px-3 py-1.5 rounded-full bg-white/90 text-slate-800 shadow-md text-[11px] font-bold flex items-center gap-1.5 backdrop-blur-xs">
+                                    <i class="fa-solid fa-magnifying-glass-plus text-emerald-600"></i> Ver foto
+                                </span>
+                            </div>
+                        </div>
                     ` : `
-                        <div class="p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2" style="min-width: 200px;">
+                        <div class="p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2">
                             <i class="fa-solid fa-image text-slate-400 text-base"></i> Imagen no disponible
                         </div>
                     `}
+                    ${caption ? `<p class="mt-2 text-xs font-semibold text-slate-800 leading-snug px-0.5">${escapeHtml(caption)}</p>` : ''}
                 </div>
-                ${m.body && !m.body.startsWith('📷') ? `<p class="mt-1 font-medium text-slate-800">${escapeHtml(m.body)}</p>` : ''}
             `;
         } else if (isAudio) {
+            let trText = m.transcription || '';
+            if (!trText && m.body && m.body.startsWith('🎤 [Audio transcribido]:')) {
+                trText = m.body.replace('🎤 [Audio transcribido]:', '').trim();
+            }
+            const isSentByMe = m.direction === 'out';
             bodyHtml = `
-                <div class="flex items-center gap-3 p-2 bg-slate-50/95 rounded-2xl border border-slate-200/80 my-1 shadow-2xs" style="min-width: 260px; max-width: 320px;">
-                    <div class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 text-base shadow-xs">
-                        <i class="fa-solid fa-microphone"></i>
+                <div class="my-1" style="min-width: 260px; max-width: 320px;">
+                    <div class="flex items-center gap-2.5 p-2 rounded-xl ${isSentByMe ? 'bg-emerald-700/10' : 'bg-slate-100/90'} border border-slate-200/60 shadow-2xs">
+                        <div class="w-9 h-9 rounded-full ${isSentByMe ? 'bg-emerald-600 text-white' : 'bg-brand-600 text-white'} flex items-center justify-center flex-shrink-0 text-sm shadow-xs">
+                            <i class="fa-solid fa-microphone"></i>
+                        </div>
+                        <div class="flex-1 min-w-[160px]">
+                            ${m.media_url ? `
+                                <audio controls style="width: 100%; height: 32px;" preload="metadata" src="${m.media_url}">
+                                    <source src="${m.media_url}" type="audio/ogg; codecs=opus">
+                                    <source src="${m.media_url}" type="audio/ogg">
+                                    <source src="${m.media_url}" type="audio/mpeg">
+                                    <source src="${m.media_url}" type="audio/mp4">
+                                    Tu navegador no soporta reproducción de audio.
+                                </audio>
+                            ` : `
+                                <div class="text-xs font-semibold text-slate-700">
+                                    <span>Nota de voz WhatsApp</span>
+                                    <span class="text-[10px] text-slate-400 block font-normal">Audio procesado</span>
+                                </div>
+                            `}
+                        </div>
                     </div>
-                    <div class="flex-1 min-w-[170px]">
-                        ${m.media_url ? `
-                            <audio controls style="width: 100%; height: 36px;" preload="metadata" src="${m.media_url}">
-                                <source src="${m.media_url}" type="audio/ogg; codecs=opus">
-                                <source src="${m.media_url}" type="audio/ogg">
-                                <source src="${m.media_url}" type="audio/mpeg">
-                                <source src="${m.media_url}" type="audio/mp4">
-                                Tu navegador no soporta reproducción de audio.
-                            </audio>
-                        ` : `
-                            <div class="text-xs font-semibold text-slate-700">
-                                <span>Nota de voz WhatsApp</span>
-                                <span class="text-[10px] text-slate-400 block font-normal">Audio procesado</span>
+                    ${trText ? `
+                        <div class="mt-1.5 p-2.5 bg-white/95 rounded-xl border border-indigo-100 shadow-2xs text-xs">
+                            <div class="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 mb-0.5">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Transcripción IA (Whisper)
                             </div>
-                        `}
-                    </div>
+                            <p class="text-[11px] text-slate-700 leading-snug font-normal italic">"${escapeHtml(trText)}"</p>
+                        </div>
+                    ` : ''}
                 </div>
             `;
         } else if (isDoc) {
-            const filename = m.filename || (m.media_url ? m.media_url.split('/').pop() : 'Archivo Adjunto');
+            const rawFilename = m.filename || (m.media_url ? m.media_url.split('/').pop() : 'Documento');
             const docLink = m.media_url || '#';
+            const ext = rawFilename.split('.').pop().toLowerCase();
+            let iconClass = 'fa-file-lines text-slate-600 bg-slate-100 border-slate-200';
+            let badgeText = ext.toUpperCase() || 'DOC';
+            
+            if (ext === 'pdf') iconClass = 'fa-file-pdf text-rose-600 bg-rose-50 border-rose-200';
+            else if (['doc', 'docx'].includes(ext)) iconClass = 'fa-file-word text-blue-600 bg-blue-50 border-blue-200';
+            else if (['xls', 'xlsx', 'csv'].includes(ext)) iconClass = 'fa-file-excel text-emerald-600 bg-emerald-50 border-emerald-200';
+            else if (['ppt', 'pptx'].includes(ext)) iconClass = 'fa-file-powerpoint text-orange-600 bg-orange-50 border-orange-200';
+            else if (['zip', 'rar', '7z'].includes(ext)) iconClass = 'fa-file-zipper text-amber-600 bg-amber-50 border-amber-200';
+
+            const caption = (m.body && !m.body.startsWith('📄')) ? m.body : '';
+
             bodyHtml = `
-                <a href="${docLink}" target="_blank" download class="flex items-center gap-3 p-3 bg-slate-100 hover:bg-slate-200/80 rounded-2xl border border-slate-200 max-w-xs transition text-slate-800 text-xs font-semibold my-1 shadow-2xs">
-                    <i class="fa-solid fa-file-pdf text-rose-500 text-2xl flex-shrink-0"></i>
-                    <div class="truncate flex-1">
-                        <span class="block truncate">${escapeHtml(filename)}</span>
-                        <span class="text-[10px] text-slate-400 font-normal block mt-0.5">Haz clic para descargar</span>
-                    </div>
-                    <i class="fa-solid fa-download text-slate-400 text-sm"></i>
-                </a>
-                ${m.body && !m.body.startsWith('📄') ? `<p class="mt-1 font-medium text-slate-800">${escapeHtml(m.body)}</p>` : ''}
+                <div class="my-1" style="max-width: 290px;">
+                    <a href="${docLink}" target="_blank" download class="flex items-center gap-3 p-2.5 bg-white/95 hover:bg-slate-50 rounded-xl border border-slate-200/90 transition text-slate-800 text-xs font-semibold shadow-xs group/doc">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 border ${iconClass}">
+                            <i class="fa-solid ${iconClass.split(' ')[0]}"></i>
+                        </div>
+                        <div class="truncate flex-1">
+                            <span class="block truncate font-bold text-slate-800 text-xs">${escapeHtml(rawFilename)}</span>
+                            <div class="flex items-center gap-1.5 mt-0.5">
+                                <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">${badgeText}</span>
+                                <span class="text-[10px] text-slate-400 font-normal">Descargar</span>
+                            </div>
+                        </div>
+                        <div class="w-7 h-7 rounded-full bg-slate-100 group-hover/doc:bg-brand-50 group-hover/doc:text-brand-600 text-slate-400 flex items-center justify-center text-xs transition">
+                            <i class="fa-solid fa-arrow-down"></i>
+                        </div>
+                    </a>
+                    ${caption ? `<p class="mt-1.5 text-xs font-semibold text-slate-800 leading-snug px-0.5">${escapeHtml(caption)}</p>` : ''}
+                </div>
+            `;
+        } else if (isVideo) {
+            const vidSrc = m.media_url || '';
+            const caption = (m.body && !m.body.startsWith('🎥')) ? m.body : '';
+            bodyHtml = `
+                <div class="my-1" style="max-width: 290px;">
+                    ${vidSrc ? `
+                        <video controls class="rounded-xl max-h-72 w-full object-cover shadow-xs border border-slate-200/60" preload="metadata" src="${vidSrc}">
+                            Tu navegador no soporta video.
+                        </video>
+                    ` : `
+                        <div class="p-3 bg-slate-100 border border-slate-200 rounded-xl text-xs text-slate-500 flex items-center gap-2">
+                            <i class="fa-solid fa-video text-slate-400 text-base"></i> Video no disponible
+                        </div>
+                    `}
+                    ${caption ? `<p class="mt-1.5 text-xs font-semibold text-slate-800 leading-snug px-0.5">${escapeHtml(caption)}</p>` : ''}
+                </div>
             `;
         }
 
@@ -1228,6 +1313,15 @@ function renderMessages(messages, activeChat) {
 // ════════════════════════════════════════════════
 let selectedMediaFile = null;
 
+function formatBytes(bytes, decimals = 1) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
 function handleMediaSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -1236,20 +1330,33 @@ function handleMediaSelect(e) {
     const container = document.getElementById('media-preview-container');
     const nameEl = document.getElementById('media-preview-name');
     const typeEl = document.getElementById('media-preview-type');
+    const sizeEl = document.getElementById('media-preview-size');
     const iconEl = document.getElementById('media-preview-icon');
 
     nameEl.textContent = file.name;
+    if (sizeEl) sizeEl.textContent = formatBytes(file.size);
     const type = file.type || '';
 
     if (type.startsWith('image/')) {
         typeEl.textContent = 'Imagen';
-        iconEl.innerHTML = `<i class="fa-solid fa-image text-emerald-600"></i>`;
+        const objUrl = URL.createObjectURL(file);
+        iconEl.innerHTML = `<img src="${objUrl}" class="w-full h-full object-cover rounded-xl" alt="Preview">`;
     } else if (type.startsWith('audio/')) {
         typeEl.textContent = 'Audio';
         iconEl.innerHTML = `<i class="fa-solid fa-microphone text-brand-600"></i>`;
+    } else if (type.startsWith('video/')) {
+        typeEl.textContent = 'Video';
+        iconEl.innerHTML = `<i class="fa-solid fa-video text-sky-600"></i>`;
     } else {
         typeEl.textContent = 'Documento';
-        iconEl.innerHTML = `<i class="fa-solid fa-file-pdf text-rose-600"></i>`;
+        const ext = file.name.split('.').pop().toLowerCase();
+        let iconClass = 'fa-file-lines text-slate-600';
+        if (ext === 'pdf') iconClass = 'fa-file-pdf text-rose-600';
+        else if (['doc', 'docx'].includes(ext)) iconClass = 'fa-file-word text-blue-600';
+        else if (['xls', 'xlsx', 'csv'].includes(ext)) iconClass = 'fa-file-excel text-emerald-600';
+        else if (['ppt', 'pptx'].includes(ext)) iconClass = 'fa-file-powerpoint text-orange-600';
+        else if (['zip', 'rar', '7z'].includes(ext)) iconClass = 'fa-file-zipper text-amber-600';
+        iconEl.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
     }
 
     container.classList.remove('hidden');
@@ -1312,6 +1419,42 @@ function cancelMediaUpload() {
         container.classList.remove('flex');
     }
 }
+
+// Lightbox Modal para Fotos
+function openImageLightbox(src, caption) {
+    const modal = document.getElementById('image-lightbox-modal');
+    const img = document.getElementById('lightbox-img');
+    const captionEl = document.getElementById('lightbox-caption');
+    const dlBtn = document.getElementById('lightbox-download-btn');
+    if (!modal || !img) return;
+
+    img.src = src;
+    if (dlBtn) dlBtn.href = src;
+    if (captionEl) {
+        if (caption) {
+            captionEl.textContent = caption;
+            captionEl.classList.remove('hidden');
+        } else {
+            captionEl.classList.add('hidden');
+        }
+    }
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeImageLightbox(e) {
+    const modal = document.getElementById('image-lightbox-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeImageLightbox();
+    }
+});
 
 async function sendMessage() {
     if (!activePhone) return;

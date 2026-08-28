@@ -420,13 +420,16 @@ class WhatsAppService:
         url = f"https://graph.facebook.com/v20.0/{phone_id}/media"
         headers = {"Authorization": f"Bearer {token}"}
 
+        import mimetypes
+        guessed_mime, _ = mimetypes.guess_type(local_filepath)
+
         mime_map = {
             'image': 'image/jpeg',
             'audio': 'audio/ogg',
             'document': 'application/pdf',
             'video': 'video/mp4'
         }
-        mime = mime_map.get(media_type, 'application/octet-stream')
+        mime = guessed_mime or mime_map.get(media_type, 'application/octet-stream')
 
         try:
             with open(local_filepath, 'rb') as f:

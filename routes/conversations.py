@@ -934,10 +934,12 @@ def api_upload_media():
     
     # Determinar tipo de media
     mime_type = file.mimetype or ''
-    if mime_type.startswith('image/') or ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
+    if mime_type.startswith('image/') or ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg']:
         media_type = 'image'
-    elif mime_type.startswith('audio/') or ext in ['.mp3', '.ogg', '.wav', '.m4a']:
+    elif mime_type.startswith('audio/') or ext in ['.mp3', '.ogg', '.wav', '.m4a', '.aac']:
         media_type = 'audio'
+    elif mime_type.startswith('video/') or ext in ['.mp4', '.mov', '.avi', '.webm', '.m4v']:
+        media_type = 'video'
     else:
         media_type = 'document'
 
@@ -962,7 +964,7 @@ def api_upload_media():
 @login_required
 def api_send_media():
     """
-    Envía un archivo multimedia (imagen, audio, documento) por WhatsApp Cloud API
+    Envía un archivo multimedia (imagen, audio, documento, video) por WhatsApp Cloud API
     y lo almacena en la conversación activa.
     """
     from services.whatsapp_service import WhatsAppService
@@ -997,6 +999,8 @@ def api_send_media():
         body = caption or '📷 [Imagen]'
     elif media_type == 'audio':
         body = '🎵 [Audio]'
+    elif media_type == 'video':
+        body = caption or '🎥 [Video]'
     else:
         body = filename or caption or '📄 [Documento]'
 
