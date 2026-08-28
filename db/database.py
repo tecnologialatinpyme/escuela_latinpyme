@@ -161,7 +161,7 @@ def load_store(include_deleted: bool = False) -> dict:
                 p = m['conversation_phone']
                 if p not in messages_by_phone:
                     messages_by_phone[p] = []
-                messages_by_phone[p].append({
+                msg_item = {
                     "id": m.get('id'),
                     "wa_message_id": m.get('wa_message_id'),
                     "direction": m.get('direction'),
@@ -172,7 +172,12 @@ def load_store(include_deleted: bool = False) -> dict:
                     "wa_sent": m.get('wa_sent', True),
                     "simulado": m.get('simulado', False),
                     "status": m.get('status', 'sent')
-                })
+                }
+                if m.get('media_type'): msg_item['media_type'] = m.get('media_type')
+                if m.get('media_url'): msg_item['media_url'] = m.get('media_url')
+                if m.get('filename'): msg_item['filename'] = m.get('filename')
+                if m.get('transcription'): msg_item['transcription'] = m.get('transcription')
+                messages_by_phone[p].append(msg_item)
 
             # Asociar mensajes a cada conversación (con coincidencia de teléfono normalizado)
             for msg_phone, msgs in messages_by_phone.items():
@@ -185,14 +190,24 @@ def load_store(include_deleted: bool = False) -> dict:
                 if matched_key:
                     store[matched_key]["messages"] = msgs
 
-            # Fallback individual por conversación si no tenía mensajes en la tabla normalizada
+            # Fallback o fusión con mensajes en JSON para preservar atributos multimedia
             for row in (conv_res.data or []):
                 phone = row['phone']
-                if phone in store and not store[phone].get("messages"):
+                if phone in store:
                     data = row.get('data') or {}
                     json_messages = data.get('messages', [])
                     if json_messages:
-                        store[phone]["messages"] = json_messages
+                        if not store[phone].get("messages"):
+                            store[phone]["messages"] = json_messages
+                        else:
+                            # Fusionar metadatos multimedia de json_messages si faltan
+                            existing_map = {m.get('id') or m.get('wa_message_id'): m for m in store[phone]["messages"]}
+                            for jm in json_messages:
+                                jid = jm.get('id') or jm.get('wa_message_id')
+                                if jid in existing_map:
+                                    for mk in ['media_type', 'media_url', 'filename', 'transcription']:
+                                        if jm.get(mk) and not existing_map[jid].get(mk):
+                                            existing_map[jid][mk] = jm.get(mk)
 
         except Exception as msg_err:
             print(f"[DB] Aviso cargando mensajes normalizados: {msg_err}")
@@ -301,8 +316,10 @@ def save_conversation(phone: str, data: dict) -> None:
     try:
         client = _get_client()
 
-        # Omitir el array de mensajes en el JSONB para evitar bloat/TOAST
+        # Preservar los últimos 100 mensajes en data JSONB para respaldar metadatos multimedia
         light_data = {k: v for k, v in data.items() if k != 'messages'}
+        if data.get('messages'):
+            light_data['messages'] = data['messages'][-100:]
 
         row = {
             'phone': norm_phone,

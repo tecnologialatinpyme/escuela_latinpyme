@@ -677,9 +677,35 @@ async function pollMessages() {
             : '/conversations/api/messages';
 
         const res = await fetch(url);
-        if (!res.ok) return;
-        const data = await res.json();
 
+        // Manejo explícito de expiración de sesión o redirección HTTP a /login
+        if (res.redirected || res.status === 401 || res.status === 403) {
+            const container = document.getElementById('chat-list');
+            if (container && container.innerHTML.includes('Cargando chats')) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center p-6 text-center text-slate-500 text-xs gap-3 font-['Outfit']">
+                        <div class="bg-amber-100 text-amber-700 w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-slate-800">Sesión Expirada</p>
+                            <p class="text-slate-500 mt-1 text-[11px]">Inicia sesión nuevamente para ver tus conversaciones en tiempo real.</p>
+                        </div>
+                        <a href="/login" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-md transition text-xs">
+                            Iniciar Sesión
+                        </a>
+                    </div>
+                `;
+            }
+            return;
+        }
+
+        if (!res.ok) {
+            renderChatList(allChats);
+            return;
+        }
+
+        const data = await res.json();
         allChats = data.chats || [];
 
         // Conteo y alerta de atención humana requerida
@@ -735,6 +761,7 @@ async function pollMessages() {
 
     } catch (e) {
         console.warn('Poll error:', e);
+        renderChatList(allChats);
     }
 }
 

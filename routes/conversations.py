@@ -503,17 +503,16 @@ def api_get_messages():
     from db.database import get_ai_conversation_config
 
     chat_list = []
-    for num, data in conversations_store.items():
-        ai_cfg = get_ai_conversation_config(num)
-        ai_enabled = ai_cfg.get('ai_enabled', True) if ai_cfg else True
+    for num, data in list(conversations_store.items()):
+        ai_enabled = data.get('ai_enabled', True)
 
         chat_list.append({
             "phone":          num,
-            "name":           data["name"],
-            "avatar":         data["avatar"],
-            "last_message":   data["last_message"],
-            "last_ts":        data["last_ts"],
-            "unread":         data["unread"],
+            "name":           data.get("name", num),
+            "avatar":         data.get("avatar", "?"),
+            "last_message":   data.get("last_message", ""),
+            "last_ts":        data.get("last_ts", ""),
+            "unread":         data.get("unread", 0),
             "human_required": data.get("human_required", False),
             "last_trigger":   data.get("last_trigger", ""),
             "ai_enabled":     ai_enabled
@@ -553,7 +552,7 @@ def api_get_messages():
             clean_phone = '+' + clean_phone.lstrip()
         norm_phone = normalize_phone_number(clean_phone)
 
-        for k in conversations_store.keys():
+        for k in list(conversations_store.keys()):
             if k == clean_phone or k == norm_phone or normalize_phone_number(k) == norm_phone:
                 active_phone_key = k
                 break
