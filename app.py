@@ -15,6 +15,7 @@ def create_app() -> Flask:
     # Directorio temporal de cargas
     app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(os.path.join(app.root_path, 'static', 'uploads', 'media'), exist_ok=True)
 
     # Configurar clave secreta para la sesión
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'latinpyme_super_secret_session_key')

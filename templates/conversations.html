@@ -1072,7 +1072,25 @@ function renderMessages(messages, activeChat) {
         `;
     }
 
-    messages.forEach(m => {
+    // Ordenar mensajes estrictamente en secuencia cronológica (más antiguos arriba, más recientes abajo)
+    const sortedMessages = [...(messages || [])].sort((a, b) => {
+        const getTs = (m) => {
+            if (!m || !m.ts) return 0;
+            const str = String(m.ts).trim();
+            const d = new Date(str);
+            if (!isNaN(d.getTime())) return d.getTime();
+            if (/^\d{1,2}:\d{2}$/.test(str)) {
+                const parts = str.split(':');
+                const now = new Date();
+                now.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+                return now.getTime();
+            }
+            return 0;
+        };
+        return getTs(a) - getTs(b);
+    });
+
+    sortedMessages.forEach(m => {
         const isHumanTrigger = m.disparador && m.disparador.includes('asesor_humano');
         const timeStr = formatWhatsAppTimestamp(m.ts, 'bubble');
 

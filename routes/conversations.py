@@ -502,6 +502,15 @@ def api_get_messages():
                         if mid not in seen:
                             seen.add(mid)
                             merged_msgs.append(m)
+
+                    def _parse_msg_ts(m):
+                        ts_v = m.get('ts') or ''
+                        try:
+                            return datetime.fromisoformat(str(ts_v).replace('Z', '+00:00')).timestamp()
+                        except Exception:
+                            return 0.0
+
+                    merged_msgs.sort(key=_parse_msg_ts)
                     conversations_store[p]['messages'] = merged_msgs
     except Exception as e:
         print(f"[API-MESSAGES] Aviso sincronizando conversaciones con BD: {e}")
@@ -592,12 +601,26 @@ def api_get_messages():
                     "disparador": m.get('disparador'),
                     "wa_sent": m.get('wa_sent', True),
                     "simulado": m.get('simulado', False),
-                    "status": m.get('status', 'sent')
+                    "status": m.get('status', 'sent'),
+                    "media_type": m.get('media_type'),
+                    "media_url": m.get('media_url'),
+                    "filename": m.get('filename'),
+                    "transcription": m.get('transcription')
                 } for m in m_res.data]
                 if not active_name and active_phone_key:
                     active_name = conversations_store.get(active_phone_key, {}).get("name", clean_p)
         except Exception as fetch_err:
             print(f"[API-MESSAGES] Salvaguarda de mensajes error: {fetch_err}")
+
+    # Asegurar orden estrictamente cronológico de active_msgs (antiguos arriba, nuevos abajo)
+    def _parse_active_ts(m):
+        ts_v = m.get('ts') or ''
+        try:
+            return datetime.fromisoformat(str(ts_v).replace('Z', '+00:00')).timestamp()
+        except Exception:
+            return 0.0
+
+    active_msgs.sort(key=_parse_active_ts)
 
     return jsonify({"chats": chat_list, "active_messages": active_msgs, "active_name": active_name})
 

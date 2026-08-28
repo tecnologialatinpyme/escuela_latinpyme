@@ -201,13 +201,28 @@ def load_store(include_deleted: bool = False) -> dict:
                             store[phone]["messages"] = json_messages
                         else:
                             # Fusionar metadatos multimedia de json_messages si faltan
-                            existing_map = {m.get('id') or m.get('wa_message_id'): m for m in store[phone]["messages"]}
+                            current_list = store[phone]["messages"]
                             for jm in json_messages:
                                 jid = jm.get('id') or jm.get('wa_message_id')
-                                if jid in existing_map:
-                                    for mk in ['media_type', 'media_url', 'filename', 'transcription']:
-                                        if jm.get(mk) and not existing_map[jid].get(mk):
-                                            existing_map[jid][mk] = jm.get(mk)
+                                jbody = jm.get('body')
+                                jts = jm.get('ts')
+                                # Buscar coincidencia por id, wa_message_id o cuerpo+ts
+                                for cur in current_list:
+                                    if (jid and (cur.get('id') == jid or cur.get('wa_message_id') == jid)) or (jbody and cur.get('body') == jbody and cur.get('direction') == jm.get('direction')):
+                                        for mk in ['media_type', 'media_url', 'filename', 'transcription']:
+                                            if jm.get(mk) and not cur.get(mk):
+                                                cur[mk] = jm.get(mk)
+                                        break
+
+            # Ordenar los mensajes de cada conversación cronológicamente
+            for phone_key in list(store.keys()):
+                def _parse_ts_m(m):
+                    ts_val = m.get('ts') or ''
+                    try:
+                        return datetime.fromisoformat(str(ts_val).replace('Z', '+00:00')).timestamp()
+                    except Exception:
+                        return 0.0
+                store[phone_key]["messages"].sort(key=_parse_ts_m)
 
         except Exception as msg_err:
             print(f"[DB] Aviso cargando mensajes normalizados: {msg_err}")
