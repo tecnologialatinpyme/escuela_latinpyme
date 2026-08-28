@@ -1278,26 +1278,6 @@ async function sendMediaMessage() {
     }
 }
 
-        const data = await res.json();
-
-        if (res.ok) {
-            await pollMessages(); // Actualizar inmediatamente
-
-            // Feedback según si llegó realmente a WhatsApp
-            if (data.whatsapp && data.whatsapp.exito) {
-                showToast('✅ Mensaje enviado por WhatsApp', 'success');
-            } else if (data.whatsapp && !data.whatsapp.simulado) {
-                const errMsg = data.whatsapp.error || 'No se pudo enviar por WhatsApp';
-                showToast('⚠️ ' + errMsg, 'warning');
-            }
-        } else {
-            showToast('❌ ' + (data.error || 'Error al enviar el mensaje'), 'error');
-        }
-    } catch (e) {
-        showToast('❌ Error de conexión', 'error');
-    }
-}
-
 
 // Enviar con Enter (Shift+Enter = nueva línea)
 document.addEventListener('DOMContentLoaded', () => {
