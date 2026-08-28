@@ -258,7 +258,10 @@ def webhook_receive():
                     # Guardar en Base de Datos Supabase
                     try:
                         _save_one(phone_key, conversations_store[phone_key])
-                        db.add_message(phone=phone_key, direction="in", body=body, ts=new_msg["ts"], msg_id=msg_id)
+                        db.add_message(
+                            phone=phone_key, direction="in", body=body, ts=new_msg["ts"], msg_id=msg_id,
+                            media_type=media_type, media_url=media_url, filename=filename, transcription=transcription
+                        )
                         current_app.logger.info(f"[WEBHOOK] Mensaje de {phone_key} ({name}) guardado OK: {body}")
                     except Exception as db_err:
                         current_app.logger.error(f"[WEBHOOK] Error guardando mensaje en BD para {phone_key}: {db_err}")
@@ -1003,7 +1006,8 @@ def api_send_media():
     try:
         db.add_message(phone=phone, direction="out", body=body, ts=new_msg["ts"],
                        wa_sent=new_msg["wa_sent"], simulado=new_msg["simulado"], msg_id=meta_msg_id,
-                       wa_message_id=meta_msg_id, status=initial_status)
+                       wa_message_id=meta_msg_id, status=initial_status,
+                       media_type=media_type, media_url=media_url, filename=filename)
     except Exception as db_err:
         current_app.logger.error(f"[SEND-MEDIA] Error guardando en BD: {db_err}")
 

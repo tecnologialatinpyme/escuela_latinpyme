@@ -563,9 +563,48 @@
                 </div>
             </div>
 
-            <div class="chat-input-area">
-                <input type="file" id="media-file-input" class="hidden" accept="image/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx" onchange="handleMediaSelect(event)">
-                <button type="button" onclick="document.getElementById('media-file-input').click()" class="text-slate-400 hover:text-brand-500 transition text-lg p-1.5 rounded-lg hover:bg-slate-100" title="Adjuntar imagen, audio o documento">
+            <div class="chat-input-area relative">
+                <!-- MENU POPOVER DE ADJUNTOS ESTILO WHATSAPP WEB -->
+                <div id="attachment-popover" class="hidden absolute bottom-14 left-2 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 w-52 z-30 animate-scale-up font-['Outfit'] space-y-1">
+                    <button type="button" onclick="triggerFileSelect('document')" class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-xl transition text-slate-700 text-xs font-semibold">
+                        <span class="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm shadow-2xs">
+                            <i class="fa-solid fa-file-lines"></i>
+                        </span>
+                        Documento
+                    </button>
+                    <button type="button" onclick="triggerFileSelect('media')" class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-xl transition text-slate-700 text-xs font-semibold">
+                        <span class="w-8 h-8 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center text-sm shadow-2xs">
+                            <i class="fa-solid fa-images"></i>
+                        </span>
+                        Fotos y videos
+                    </button>
+                    <button type="button" onclick="triggerFileSelect('camera')" class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-xl transition text-slate-700 text-xs font-semibold">
+                        <span class="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center text-sm shadow-2xs">
+                            <i class="fa-solid fa-camera"></i>
+                        </span>
+                        Cámara
+                    </button>
+                    <button type="button" onclick="triggerFileSelect('audio')" class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-xl transition text-slate-700 text-xs font-semibold">
+                        <span class="w-8 h-8 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-sm shadow-2xs">
+                            <i class="fa-solid fa-headphones"></i>
+                        </span>
+                        Audio
+                    </button>
+                    <button type="button" onclick="openContactShareModal()" class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-xl transition text-slate-700 text-xs font-semibold">
+                        <span class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm shadow-2xs">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                        Contacto
+                    </button>
+                </div>
+
+                <!-- INPUTS DE ARCHIVOS ESPECÍFICOS -->
+                <input type="file" id="input-attach-document" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip" onchange="handleMediaSelect(event)">
+                <input type="file" id="input-attach-media" class="hidden" accept="image/*,video/*" onchange="handleMediaSelect(event)">
+                <input type="file" id="input-attach-camera" class="hidden" accept="image/*" capture="environment" onchange="handleMediaSelect(event)">
+                <input type="file" id="input-attach-audio" class="hidden" accept="audio/*,.ogg,.mp3,.wav,.m4a" onchange="handleMediaSelect(event)">
+
+                <button type="button" id="btn-attach-toggle" onclick="toggleAttachmentMenu()" class="text-slate-400 hover:text-brand-500 transition text-lg p-1.5 rounded-lg hover:bg-slate-100" title="Adjuntar archivo o multimedia">
                     <i class="fa-solid fa-paperclip"></i>
                 </button>
                 <textarea id="chat-input" class="chat-input-box" rows="1" placeholder="Escribe un mensaje..."></textarea>
@@ -1080,49 +1119,52 @@ function renderMessages(messages, activeChat) {
         // Helper para renderizar contenido multimedia (Imagen, Audio con Transcripción Whisper, Documento)
         let bodyHtml = escapeHtml(m.body || '');
 
-        if (m.media_type === 'image' || (m.media_url && /\.(jpg|jpeg|png|webp|gif)$/i.test(m.media_url))) {
+        const isImage = m.media_type === 'image' || (m.body && m.body.startsWith('📷')) || (m.media_url && /\.(jpg|jpeg|png|webp|gif)$/i.test(m.media_url));
+        const isAudio = m.media_type === 'audio' || (m.body && (m.body.startsWith('🎤') || m.body.startsWith('🎵'))) || (m.media_url && /\.(ogg|opus|mp3|wav|m4a)$/i.test(m.media_url));
+        const isDoc = m.media_type === 'document' || (m.body && m.body.startsWith('📄')) || (m.media_url && /\.(pdf|doc|docx|xls|xlsx)$/i.test(m.media_url));
+
+        if (isImage) {
+            const imgSrc = m.media_url || '/static/img/placeholder.png';
             bodyHtml = `
                 <div class="mb-1">
-                    <img src="${m.media_url}" class="rounded-lg max-w-xs max-h-60 object-cover cursor-pointer shadow-sm hover:opacity-95 transition" onclick="window.open('${m.media_url}', '_blank')">
+                    <img src="${imgSrc}" class="rounded-xl max-w-xs max-h-64 object-cover cursor-pointer shadow-sm hover:opacity-95 transition" onclick="window.open('${imgSrc}', '_blank')">
                 </div>
-                ${m.body && !m.body.startsWith('📷') ? `<p class="mt-1">${escapeHtml(m.body)}</p>` : ''}
+                ${m.body && !m.body.startsWith('📷') ? `<p class="mt-1 font-medium text-slate-800">${escapeHtml(m.body)}</p>` : ''}
             `;
-        } else if (m.media_type === 'audio' || (m.media_url && /\.(ogg|opus|mp3|wav|m4a)$/i.test(m.media_url))) {
-            const transcriptText = m.transcription || (m.body && m.body.includes('Audio transcribido') ? m.body.replace('🎤 [Audio transcribido]:', '').trim() : null);
+        } else if (isAudio) {
+            let transcriptText = m.transcription;
+            if (!transcriptText && m.body && m.body.includes('Audio transcribido')) {
+                transcriptText = m.body.replace('🎤 [Audio transcribido]:', '').trim();
+            }
             bodyHtml = `
-                <div class="flex flex-col gap-1.5 my-1 p-2 bg-slate-100/90 rounded-xl border border-slate-200/80 max-w-xs">
+                <div class="flex flex-col gap-2 my-1 p-2.5 bg-slate-100/90 rounded-2xl border border-slate-200/80 max-w-xs">
                     <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-microphone text-brand-600 text-lg"></i>
-                        <audio controls class="w-full h-8 text-xs outline-none" src="${m.media_url}"></audio>
+                        <div class="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center flex-shrink-0 text-sm shadow-xs">
+                            <i class="fa-solid fa-microphone"></i>
+                        </div>
+                        ${m.media_url ? `<audio controls class="w-full h-8 text-xs outline-none" src="${m.media_url}"></audio>` : `<span class="text-xs font-semibold text-slate-700">Nota de voz WhatsApp</span>`}
                     </div>
                     ${transcriptText ? `
-                        <div class="text-[11px] text-slate-700 font-medium italic bg-white p-2 rounded-lg border border-slate-200 shadow-2xs">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-brand-600 block not-italic mb-0.5"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Transcripción IA Whisper:</span>
+                        <div class="text-[11px] text-slate-700 font-medium italic bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-brand-600 block not-italic mb-1"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Transcripción IA Whisper:</span>
                             "${escapeHtml(transcriptText)}"
                         </div>
                     ` : ''}
                 </div>
             `;
-        } else if (m.media_type === 'document' || (m.media_url && /\.(pdf|doc|docx|xls|xlsx)$/i.test(m.media_url))) {
+        } else if (isDoc) {
             const filename = m.filename || (m.media_url ? m.media_url.split('/').pop() : 'Archivo Adjunto');
+            const docLink = m.media_url || '#';
             bodyHtml = `
-                <a href="${m.media_url}" target="_blank" download class="flex items-center gap-3 p-2.5 bg-slate-100 hover:bg-slate-200/80 rounded-xl border border-slate-200 max-w-xs transition text-slate-800 text-xs font-semibold my-1">
+                <a href="${docLink}" target="_blank" download class="flex items-center gap-3 p-3 bg-slate-100 hover:bg-slate-200/80 rounded-2xl border border-slate-200 max-w-xs transition text-slate-800 text-xs font-semibold my-1 shadow-2xs">
                     <i class="fa-solid fa-file-pdf text-rose-500 text-2xl flex-shrink-0"></i>
                     <div class="truncate flex-1">
                         <span class="block truncate">${escapeHtml(filename)}</span>
-                        <span class="text-[10px] text-slate-400 font-normal">Haz clic para descargar</span>
+                        <span class="text-[10px] text-slate-400 font-normal block mt-0.5">Haz clic para descargar</span>
                     </div>
-                    <i class="fa-solid fa-download text-slate-400"></i>
+                    <i class="fa-solid fa-download text-slate-400 text-sm"></i>
                 </a>
-                ${m.body && !m.body.startsWith('📄') ? `<p class="mt-1">${escapeHtml(m.body)}</p>` : ''}
-            `;
-        } else if (m.transcription) {
-            bodyHtml = `
-                <div class="my-1 p-2 bg-slate-50 rounded-lg border border-slate-200 text-xs">
-                    <span class="text-[10px] font-bold uppercase text-brand-600 block mb-0.5"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Transcripción IA:</span>
-                    "${escapeHtml(m.transcription)}"
-                </div>
-                <p>${escapeHtml(m.body)}</p>
+                ${m.body && !m.body.startsWith('📄') ? `<p class="mt-1 font-medium text-slate-800">${escapeHtml(m.body)}</p>` : ''}
             `;
         }
 
@@ -1183,10 +1225,56 @@ function handleMediaSelect(e) {
     container.classList.add('flex');
 }
 
+function toggleAttachmentMenu() {
+    const popover = document.getElementById('attachment-popover');
+    if (!popover) return;
+    popover.classList.toggle('hidden');
+}
+
+function triggerFileSelect(type) {
+    const popover = document.getElementById('attachment-popover');
+    if (popover) popover.classList.add('hidden');
+
+    let inputId = 'input-attach-document';
+    if (type === 'media') inputId = 'input-attach-media';
+    else if (type === 'camera') inputId = 'input-attach-camera';
+    else if (type === 'audio') inputId = 'input-attach-audio';
+
+    const input = document.getElementById(inputId);
+    if (input) input.click();
+}
+
+function openContactShareModal() {
+    const popover = document.getElementById('attachment-popover');
+    if (popover) popover.classList.add('hidden');
+    const nameInput = prompt('Escribe el nombre del contacto a compartir:');
+    if (!nameInput) return;
+    const phoneInput = prompt('Escribe el teléfono del contacto:');
+    if (!phoneInput) return;
+
+    const input = document.getElementById('chat-input');
+    input.value = `👤 [Contacto]: ${nameInput} (${phoneInput})`;
+    input.focus();
+    showToast('✅ Contacto insertado en el chat');
+}
+
+// Cerrar menú emergente de adjuntos al hacer clic fuera
+document.addEventListener('click', (e) => {
+    const popover = document.getElementById('attachment-popover');
+    const toggleBtn = document.getElementById('btn-attach-toggle');
+    if (popover && !popover.classList.contains('hidden')) {
+        if (!popover.contains(e.target) && (!toggleBtn || !toggleBtn.contains(e.target))) {
+            popover.classList.add('hidden');
+        }
+    }
+});
+
 function cancelMediaUpload() {
     selectedMediaFile = null;
-    const fileInput = document.getElementById('media-file-input');
-    if (fileInput) fileInput.value = '';
+    ['input-attach-document', 'input-attach-media', 'input-attach-camera', 'input-attach-audio'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
     const container = document.getElementById('media-preview-container');
     if (container) {
         container.classList.add('hidden');

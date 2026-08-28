@@ -391,33 +391,53 @@ class WhatsAppService:
             print(f"[META-MEDIA] Excepción descargando media {media_id}: {e}")
             return {"exito": False, "error": str(e)}
 
+    def upload_media_to_meta(self, local_filepath: str, media_type: str = 'image') -> str | None:
+        """
+        Sube un archivo multimedia local a los servidores de Meta Cloud API
+        y devuelve el media_id asignado por WhatsApp.
+        """
+        token = app_config.meta_wa_token
+        phone_id = app_config.meta_wa_phone_id
+        if not token or not phone_id or not local_filepath or not os.path.exists(local_filepath):
+            return None
+
+        url = f"https://graph.facebook.com/v20.0/{phone_id}/media"
+        headers = {"Authorization": f"Bearer {token}"}
+
+        mime_map = {
+            'image': 'image/jpeg',
+            'audio': 'audio/ogg',
+            'document': 'application/pdf',
+            'video': 'video/mp4'
+        }
+        mime = mime_map.get(media_type, 'application/octet-stream')
+
+        try:
+            with open(local_filepath, 'rb') as f:
+                files = {
+                    'file': (os.path.basename(local_filepath), f, mime),
+                    'messaging_product': (None, 'whatsapp')
+                }
+                res = requests.post(url, headers=headers, files=files, timeout=25)
+                if res.status_code in [200, 201]:
+                    data = res.json()
+                    media_id = data.get('id')
+                    print(f"[META-UPLOAD] Archivo {local_filepath} subido a Meta exitosamente (media_id={media_id})")
+                    return media_id
+                else:
+                    print(f"[META-UPLOAD] Error subiendo archivo a Meta ({res.status_code}): {res.text}")
+        except Exception as e:
+            print(f"[META-UPLOAD] Excepción subiendo media a Meta: {e}")
+        return None
+
     def enviar_mensaje_media(self, telefono: str, media_type: str, media_url: str, caption: str = None, filename: str = None) -> dict:
         """
         Envía un archivo multimedia (imagen, audio, documento) por WhatsApp Cloud API.
+        Soporta subida previa a Meta API (media_id) para garantizar la entrega al teléfono del usuario.
         """
         telefono_limpio = telefono.replace("+", "").strip()
         token = app_config.meta_wa_token
         phone_id = app_config.meta_wa_phone_id
-
-        payload = {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": telefono_limpio,
-            "type": media_type
-        }
-
-        if media_type == "image":
-            payload["image"] = {"link": media_url}
-            if caption:
-                payload["image"]["caption"] = caption
-        elif media_type == "document":
-            payload["document"] = {"link": media_url}
-            if caption:
-                payload["document"]["caption"] = caption
-            if filename:
-                payload["document"]["filename"] = filename
-        elif media_type in ["audio", "voice"]:
-            payload["audio"] = {"link": media_url}
 
         if not token or not phone_id:
             time.sleep(0.1)
@@ -428,13 +448,43 @@ class WhatsAppService:
                 "detalles": f"Envío simulado de {media_type} a {telefono}"
             }
 
+        # Intentar subir archivo local a Meta para obtener media_id si es una ruta local
+        media_id = None
+        if media_url and (media_url.startswith('/static/') or media_url.startswith('static/')):
+            rel_path = media_url.lstrip('/')
+            if os.path.exists(rel_path):
+                media_id = self.upload_media_to_meta(rel_path, media_type)
+
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": telefono_limpio,
+            "type": media_type
+        }
+
+        target_obj = {}
+        if media_id:
+            target_obj["id"] = media_id
+        elif media_url and (media_url.startswith('http://') or media_url.startswith('https://')):
+            target_obj["link"] = media_url
+        else:
+            # Fallback en caso de link no accesible
+            target_obj["link"] = media_url
+
+        if caption and media_type in ["image", "document", "video"]:
+            target_obj["caption"] = caption
+        if filename and media_type == "document":
+            target_obj["filename"] = filename
+
+        payload[media_type] = target_obj
+
         url = f"https://graph.facebook.com/v20.0/{phone_id}/messages"
         try:
             headers = {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json; charset=utf-8"
             }
-            res = requests.post(url, json=payload, headers=headers, timeout=15)
+            res = requests.post(url, json=payload, headers=headers, timeout=20)
             data = res.json()
             if res.status_code in [200, 201]:
                 return {
