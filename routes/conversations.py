@@ -481,22 +481,25 @@ def api_get_messages():
     try:
         db_store = _load_store()
         if db_store:
-            for p, d in db_store.items():
+            for p, d in list(db_store.items()):
                 if p not in conversations_store:
                     conversations_store[p] = d
                 else:
+                    # Actualizar metadata fresca de Supabase
+                    for field in ['name', 'avatar', 'last_message', 'last_ts', 'human_required', 'unread', 'assigned_to', 'assigned_user_name', 'last_trigger', 'wa_id', 'real_phone', 'display_phone', 'aula_info']:
+                        if d.get(field) is not None:
+                            conversations_store[p][field] = d[field]
+
                     existing_msgs = conversations_store[p].get('messages', [])
                     db_msgs = d.get('messages', [])
                     seen = set()
                     merged_msgs = []
                     for m in db_msgs + existing_msgs:
-                        mid = m.get('wa_message_id') or m.get('id') or (m.get('ts'), m.get('body'))
+                        mid = m.get('wa_message_id') or m.get('id') or f"{m.get('ts')}_{m.get('body')}"
                         if mid not in seen:
                             seen.add(mid)
                             merged_msgs.append(m)
                     conversations_store[p]['messages'] = merged_msgs
-                    if d.get('name') and d['name'] != p:
-                        conversations_store[p]['name'] = d['name']
     except Exception as e:
         print(f"[API-MESSAGES] Aviso sincronizando conversaciones con BD: {e}")
 

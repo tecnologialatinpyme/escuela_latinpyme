@@ -268,7 +268,6 @@ def add_message(
             'disparador': disparador,
             'wa_sent': wa_sent,
             'simulado': simulado,
-            'status': status,
             'deleted_at': None
         }
         if wa_id:
@@ -276,8 +275,16 @@ def add_message(
         if ts:
             payload['ts'] = _format_iso_ts(ts)
 
-        res = client.table('messages').insert(payload).execute()
-        return res.data[0] if res.data else payload
+        try:
+            payload_with_status = dict(payload)
+            payload_with_status['status'] = status
+            res = client.table('messages').insert(payload_with_status).execute()
+            return res.data[0] if res.data else payload
+        except Exception as st_err:
+            if 'PGRST204' in str(st_err) or 'status' in str(st_err):
+                res = client.table('messages').insert(payload).execute()
+                return res.data[0] if res.data else payload
+            raise st_err
     except Exception as e:
         err_str = str(e)
         if 'duplicate' in err_str.lower() or '23505' in err_str or 'wa_message_id' in err_str:

@@ -867,16 +867,20 @@ function formatWhatsAppTimestamp(rawTs, mode = 'list') {
 // RENDER — Lista de chats
 // ════════════════════════════════════════════════
 function renderChatList(chats) {
-    const query = document.getElementById('chat-search').value.toLowerCase();
-    let filtered = chats.filter(c =>
-        c.name.toLowerCase().includes(query) ||
-        c.phone.includes(query)
-    );
+    const searchInput = document.getElementById('chat-search');
+    const query = searchInput && searchInput.value ? searchInput.value.toLowerCase().trim() : '';
+
+    let filtered = (chats || []).filter(c => {
+        if (!c) return false;
+        const name = String(c.name || c.phone || '').toLowerCase();
+        const phone = String(c.phone || '').toLowerCase();
+        return name.includes(query) || phone.includes(query);
+    });
 
     if (currentFilter === 'human') {
-        filtered = filtered.filter(c => c.human_required);
+        filtered = filtered.filter(c => c && c.human_required);
     } else if (currentFilter === 'ai') {
-        filtered = filtered.filter(c => !c.human_required);
+        filtered = filtered.filter(c => c && !c.human_required);
     }
 
     // Función para obtener timestamp numérico y ordenar la lista con el más reciente al inicio
@@ -900,6 +904,7 @@ function renderChatList(chats) {
     filtered.sort((a, b) => getSortTimestamp(b.last_ts) - getSortTimestamp(a.last_ts));
 
     const container = document.getElementById('chat-list');
+    if (!container) return;
 
     if (filtered.length === 0) {
         container.innerHTML = `
@@ -911,26 +916,34 @@ function renderChatList(chats) {
     }
 
     container.innerHTML = filtered.map(chat => {
-        const isHuman = chat.human_required;
-        const isActive = chat.phone === activePhone;
+        if (!chat) return '';
+        const isHuman = !!chat.human_required;
+        const phoneStr = String(chat.phone || '');
+        const isActive = activePhone && phoneStr && (chat.phone === activePhone || phoneStr.replace(/[\s\+]/g, '') === activePhone.replace(/[\s\+]/g, ''));
         let borderStyle = '';
         if (isHuman) borderStyle = 'border-left: 4px solid #f43f5e; background: #fff5f5;';
         if (isActive) borderStyle = 'border-left: 4px solid #6366f1; background: #ede9fe;';
 
         const formattedTime = formatWhatsAppTimestamp(chat.last_ts, 'list');
+        const safePhone = escapeHtml(phoneStr);
+        const nameStr = String(chat.name || phoneStr || 'Contacto');
+        const safeName = escapeHtml(nameStr);
+        const avatarStr = String(chat.avatar || (nameStr ? nameStr.substring(0,2).toUpperCase() : '??'));
+        const safeAvatar = escapeHtml(avatarStr);
+        const safeItemId = phoneStr.replace(/\+/g, '').replace(/ /g, '');
 
         return `
         <div class="chat-item ${isActive ? 'active' : ''}"
              style="${borderStyle}"
-             onclick="openChat('${chat.phone}', '${escapeHtml(chat.name)}', '${escapeHtml(chat.avatar)}')"
-             id="chat-item-${chat.phone.replace(/\+/g,'').replace(/ /g,'')}">
-            <div class="chat-avatar" style="background: ${avatarColor(chat.name)}; position: relative;">
-                ${escapeHtml(chat.avatar)}
+             onclick="openChat('${safePhone}', '${safeName}', '${safeAvatar}')"
+             id="chat-item-${safeItemId}">
+            <div class="chat-avatar" style="background: ${avatarColor(nameStr)}; position: relative;">
+                ${safeAvatar}
                 ${isHuman ? '<span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 border-2 border-white rounded-full animate-ping"></span>' : ''}
             </div>
             <div class="chat-item-info">
                 <div class="flex items-center gap-1.5">
-                    <div class="chat-item-name">${escapeHtml(chat.name)}</div>
+                    <div class="chat-item-name">${safeName}</div>
                     ${isHuman ? '<span class="bg-rose-100 text-rose-700 border border-rose-200 text-[9px] font-extrabold px-1.5 py-0.2 rounded-md flex-shrink-0">🚨 ASESOR</span>' : ''}
                 </div>
                 <div class="chat-item-preview">${escapeHtml(chat.last_message || '—')}</div>
@@ -938,7 +951,7 @@ function renderChatList(chats) {
             <div class="chat-item-meta">
                 <div class="flex items-center gap-1">
                     <span class="chat-item-ts">${formattedTime}</span>
-                    <button class="btn-delete-chat" onclick="event.stopPropagation(); confirmDelete('${chat.phone}', '${escapeHtml(chat.name)}')" title="Eliminar conversación">
+                    <button class="btn-delete-chat" onclick="event.stopPropagation(); confirmDelete('${safePhone}', '${safeName}')" title="Eliminar conversación">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 </div>
@@ -948,7 +961,8 @@ function renderChatList(chats) {
         `;
     }).join('');
 
-    document.getElementById('total-chats-badge').textContent = chats.length;
+    const totalBadge = document.getElementById('total-chats-badge');
+    if (totalBadge) totalBadge.textContent = chats.length;
 }
 
 // ════════════════════════════════════════════════
