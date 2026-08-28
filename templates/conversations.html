@@ -1166,7 +1166,13 @@ function renderMessages(messages, activeChat) {
                     </div>
                     <div class="flex-1 overflow-hidden">
                         ${m.media_url ? `
-                            <audio controls class="w-full h-8 text-xs outline-none" src="${m.media_url}"></audio>
+                            <audio controls class="w-full h-8 text-xs outline-none" preload="metadata" src="${m.media_url}">
+                                <source src="${m.media_url}" type="audio/ogg; codecs=opus">
+                                <source src="${m.media_url}" type="audio/ogg">
+                                <source src="${m.media_url}" type="audio/mpeg">
+                                <source src="${m.media_url}" type="audio/mp4">
+                                Tu navegador no soporta reproducción de audio.
+                            </audio>
                         ` : `
                             <span class="text-xs font-semibold text-slate-700 block truncate">Nota de voz WhatsApp</span>
                         `}

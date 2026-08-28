@@ -1,3 +1,4 @@
+import os
 import time
 import json
 import requests
@@ -398,7 +399,22 @@ class WhatsAppService:
         """
         token = app_config.meta_wa_token
         phone_id = app_config.meta_wa_phone_id
-        if not token or not phone_id or not local_filepath or not os.path.exists(local_filepath):
+        if not token or not phone_id or not local_filepath:
+            return None
+
+        clean_p = local_filepath.lstrip('/')
+        if not os.path.isabs(clean_p) and not os.path.exists(clean_p):
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            cand = os.path.join(base_dir, clean_p)
+            if os.path.exists(cand):
+                local_filepath = cand
+            else:
+                local_filepath = clean_p
+        else:
+            local_filepath = clean_p
+
+        if not os.path.exists(local_filepath):
+            print(f"[META-UPLOAD] Archivo no encontrado en disco: {local_filepath}")
             return None
 
         url = f"https://graph.facebook.com/v20.0/{phone_id}/media"

@@ -263,7 +263,12 @@ def add_message(
     simulado: bool = False,
     msg_id: str = None,
     wa_message_id: str = None,
-    status: str = 'sent'
+    status: str = 'sent',
+    media_type: str = None,
+    media_url: str = None,
+    filename: str = None,
+    transcription: str = None,
+    **kwargs
 ) -> dict:
     """
     Inserta un mensaje individual en la tabla normalizada 'messages'.
@@ -289,6 +294,14 @@ def add_message(
             payload['wa_message_id'] = str(wa_id)
         if ts:
             payload['ts'] = _format_iso_ts(ts)
+        if media_type:
+            payload['media_type'] = media_type
+        if media_url:
+            payload['media_url'] = media_url
+        if filename:
+            payload['filename'] = filename
+        if transcription:
+            payload['transcription'] = transcription
 
         try:
             payload_with_status = dict(payload)
@@ -296,10 +309,21 @@ def add_message(
             res = client.table('messages').insert(payload_with_status).execute()
             return res.data[0] if res.data else payload
         except Exception as st_err:
-            if 'PGRST204' in str(st_err) or 'status' in str(st_err):
-                res = client.table('messages').insert(payload).execute()
-                return res.data[0] if res.data else payload
-            raise st_err
+            # Fallback en caso de que columnas adicionales no existan en Supabase
+            base_payload = {
+                'conversation_phone': norm_phone,
+                'direction': direction,
+                'body': body,
+                'ia_generated': ia_generated,
+                'disparador': disparador,
+                'wa_sent': wa_sent,
+                'simulado': simulado,
+                'deleted_at': None
+            }
+            if wa_id: base_payload['wa_message_id'] = str(wa_id)
+            if ts: base_payload['ts'] = _format_iso_ts(ts)
+            res = client.table('messages').insert(base_payload).execute()
+            return res.data[0] if res.data else base_payload
     except Exception as e:
         err_str = str(e)
         if 'duplicate' in err_str.lower() or '23505' in err_str or 'wa_message_id' in err_str:
